@@ -19,6 +19,10 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500).json({ message: 'Napaka strežnika.' });
+});
 
 app.use('/api/datoteke', dataRouter);
 app.use('/api/komentarji', commentsRouter);

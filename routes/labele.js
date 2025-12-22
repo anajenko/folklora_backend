@@ -5,25 +5,29 @@ const utils = require('../utils/utils.js'); // uvozimo pomožne funckije
 const multer = require('multer');
 const upload = multer(); 
 
-// pridobivanje vseh label
-router.get('/', async (req, res, next) => { // '/' pomeni '/labele'
+router.get('/', async (req, res, next) => {
     try {
-        // Uporabimo pool.execute() za varno izvedbo poizvedbe
         const [rows, fields] = await pool.execute('SELECT id, naziv, tip FROM labela');
+        
+        if (rows.length === 0) { // tabela je prazna
+            return res.status(204).send(); //no content
+        }
         res.status(200).json(rows);		// Pošljemo podatke uporabniku kot JSON
+
     } catch (err) {
         next(err);
 	}
 });
 
-/* Pridobivanje vseh label datoteke s posredovanim datoteka_id */
+//pridobivanje vseh label datoteke s posredovanim datoteka_id
 router.get('/datoteka/:datoteka_id', async (req, res, next) => {
     try {
 		const datoteka_id = req.params.datoteka_id;
-        // preverimo, če id obstaja --> TODO
-        // preverimo, če datoteka obstaja
+        if (!/^\d+$/.test(datoteka_id)) {
+            return res.status(400).json({ message: 'Neustrezen format za ID datoteke' });
+        }
         if (!(await utils.datotekaObstaja(datoteka_id))) {
-            res.status(404).json({message: 'Datoteka ne obstaja!'});
+            return res.status(404).json({message: 'Datoteka ne obstaja!'});
         }
                 
         const sql = `
@@ -41,14 +45,14 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
     }
 });
 
-// pridobivanje labele s posredovanim id
 router.get('/:id', async (req, res, next) => {
     try {
 		const id = req.params.id;
-        // preverimo, če id obstaja --> TODO
-        // preverimo, če datoteka obstaja
+        if (!/^\d+$/.test(id)) {
+            return res.status(400).json({ message: 'Neustrezen format za ID labela' });
+        }
         if (!(await utils.labelaObstaja(id))) {
-            res.status(404).json({message: 'Labela ne obstaja!'});
+            return res.status(404).json({message: 'Labela ne obstaja!'});
         }
                 
         const sql = 'SELECT id, naziv, tip FROM labela WHERE id = ?';
@@ -61,7 +65,6 @@ router.get('/:id', async (req, res, next) => {
     }
 });
 
-// dodajanje labele
 router.post('/', upload.none(), async (req, res, next) => {
     const {naziv, tip} = req.body;
 
@@ -70,6 +73,12 @@ router.post('/', upload.none(), async (req, res, next) => {
     }
 
     try {
+        //ali že obstaja labela z istim imenom
+        const [rows] = await pool.execute('SELECT id FROM labela WHERE naziv = ?', [naziv]);
+        if (rows.length > 0) {
+            return res.status(409).json({ message: 'Labela z istim imenom že obstaja!' });
+        }
+
         const sql = 'INSERT INTO labela (naziv, tip) VALUES (?, ?)';
         const [result] = await pool.execute(sql, [naziv, tip]);
 
@@ -81,19 +90,18 @@ router.post('/', upload.none(), async (req, res, next) => {
                 message: 'Labela uspešno dodana!',
                 url:urlVira
             });
-        } else {
-            return res.status(500).json({ message: 'Dodajanje labele ni bilo uspešno.' });
         }
+        throw new Error('Dodajanje labele ni bilo uspešno.');
     } catch (err) {
-        // V primeru napake baze podatkov
-        res.status(500).json({ message: 'Napaka strežnika pri dodajanju labele.' });
+        next(err);
     }
 });
 
-// brisanje labele
 router.delete('/:id', async (req, res, next) => {
-    //preverim, če sem dobil vse potrebne podatke
     const id = req.params.id;
+    if (!/^\d+$/.test(id)) {
+            return res.status(400).json({ message: 'Neustrezen format za ID labela' });
+        }
 
     try {
         const [existingData] = await pool.execute('SELECT id FROM labela WHERE id = ?', [id]);
@@ -105,10 +113,9 @@ router.delete('/:id', async (req, res, next) => {
         
         if (result.affectedRows === 1) {
             res.status(204).send();
-        } else {
-            res.status(500).json({ message: 'Napaka pri brisanju labele.' });
-        }
-            } catch (err) {
+        } 
+        throw new Error('Brisanje labele ni bilo uspešno.');
+    } catch (err) {
         next(err);
     }
 });
