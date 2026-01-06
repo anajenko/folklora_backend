@@ -5,6 +5,39 @@ const utils = require('../utils/utils.js'); // uvozimo pomožne funckije
 const multer = require('multer');
 const upload = multer(); 
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Labele:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         naziv:
+ *           type: string
+ *         tip:
+ *           type: string
+ */
+
+/**
+ * @swagger
+ * /api/labele:
+ *   get:
+ *     summary: Get all labels
+ *     tags: [Labele]
+ *     responses:
+ *       200:
+ *         description: List of labels
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Labela'
+ *       204:
+ *         description: No labels
+ */
 router.get('/', async (req, res, next) => {
     try {
         const [rows, fields] = await pool.execute('SELECT id, naziv, tip FROM labela');
@@ -19,6 +52,40 @@ router.get('/', async (req, res, next) => {
 	}
 });
 
+/**
+ * @swagger
+ * /api/labele/datoteka/{datoteka_id}:
+ *   get:
+ *     summary: Get all labels for a specific file
+ *     tags: [Labele]
+ *     parameters:
+ *       - in: path
+ *         name: datoteka_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the file
+ *     responses:
+ *       200:
+ *         description: List of labels associated with the file
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   naziv:
+ *                     type: string
+ *                   tip:
+ *                     type: string
+ *       400:
+ *         description: Invalid file ID
+ *       404:
+ *         description: File not found
+ */
 //pridobivanje vseh label datoteke s posredovanim datoteka_id
 router.get('/datoteka/:datoteka_id', async (req, res, next) => {
     try {
@@ -45,6 +112,38 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/labele/{id}:
+ *   get:
+ *     summary: Get label details by ID
+ *     tags: [Labele]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the label
+ *     responses:
+ *       200:
+ *         description: Label details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 naziv:
+ *                   type: string
+ *                 tip:
+ *                   type: string
+ *       400:
+ *         description: Invalid label ID
+ *       404:
+ *         description: Label not found
+ */
 router.get('/:id', async (req, res, next) => {
     try {
 		const id = req.params.id;
@@ -65,6 +164,29 @@ router.get('/:id', async (req, res, next) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/labele:
+ *   post:
+ *     summary: Add a new label
+ *     tags: [Labele]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               naziv:
+ *                 type: string
+ *               tip:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Label created
+ *       400:
+ *         description: Bad request
+ */
 router.post('/', upload.none(), async (req, res, next) => {
     const {naziv, tip} = req.body;
 
@@ -97,6 +219,27 @@ router.post('/', upload.none(), async (req, res, next) => {
     }
 });
 
+/**
+ * @swagger
+ * /api/labele/{id}:
+ *   delete:
+ *     summary: Delete a label by ID
+ *     tags: [Labele]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID of the label to delete
+ *     responses:
+ *       204:
+ *         description: Label deleted successfully
+ *       400:
+ *         description: Invalid label ID
+ *       404:
+ *         description: Label not found
+ */
 router.delete('/:id', async (req, res, next) => {
     const id = req.params.id;
     if (!/^\d+$/.test(id)) {

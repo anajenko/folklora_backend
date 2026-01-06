@@ -4,6 +4,9 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const cors = require('cors');
 
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
+
 const dataRouter = require('./routes/datoteke');
 const commentsRouter = require('./routes/komentarji');
 const labelsRouter = require('./routes/labele');
@@ -19,6 +22,9 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 app.use((err, req, res, next) => {
     console.error(err);
     res.status(500).json({ message: 'Napaka strežnika.' });
