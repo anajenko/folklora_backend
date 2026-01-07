@@ -149,7 +149,7 @@ router.get('/:id/datoteke', async (req, res, next) => {
             return res.status(400).json({ message: 'Neustrezen format za ID labele!' });
         }
 
-        if (!(await utils.labelaObstaja(id))) { // todo poglej ce sm prou napisal !!!!
+        if (!(await utils.labelaObstaja(id))) {
             return res.status(404).json({ message: `Labela z ID-jem '${id}' ne obstaja!` });
         }
 
@@ -257,7 +257,7 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.post('/', upload.none(), async (req, res, next) => { // todo upload.none pomoje ne rabis - stestiraj
+router.post('/', async (req, res, next) => { 
     const {naziv, tip} = req.body;
 
     if (!naziv || !tip) {
