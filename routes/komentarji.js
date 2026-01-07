@@ -14,10 +14,13 @@ const utils = require('../utils/utils.js');
  *           type: integer
  *         datoteka_id:
  *           type: integer
+ *           description: ID datoteke, ki ji pripada komentar
  *         besedilo:
  *           type: string
+ *           description: Besedilo komentarja
  *         poskodovano:
  *           type: boolean
+ *           description: Zastavica, če je datoteka poškodovana (1 -> je poškodovana)
  */
 
 /**
@@ -65,7 +68,6 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
         const [result] = await pool.execute(sql, [datoteka_id]);
 
         res.status(200).json(result);
-
     } catch (err) {
         next(err);
     }
@@ -90,16 +92,7 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 datoteka_id:
- *                   type: integer
- *                 besedilo:
- *                   type: string
- *                 poskodovano:
- *                   type: integer
+ *               $ref: '#/components/schemas/Komentar'
  *       400:
  *         description: Neustrezen format za {id} komentarja
  *       404:
@@ -121,7 +114,6 @@ router.get('/:id', async (req, res, next) => {
         const [result] = await pool.execute(sql, [id]);
 
         res.status(200).json(result);
-
     } catch (err) {
         next(err);
     }
@@ -149,6 +141,15 @@ router.get('/:id', async (req, res, next) => {
  *     responses:
  *       201:
  *         description: Komentar uspešno dodan na datoteko
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 url:
+ *                   type: string
  *       400:
  *         description: Manjkajo podatki za dodajanje komentarja
  *       404:
@@ -162,7 +163,6 @@ router.post('/', async (req, res, next) => {
     if (!datoteka_id || (!besedilo && (poskodovano == 0 || poskodovano === undefined))) { // todo stestiraj, ce ne pa odstrani un === undefidne
         return res.status(400).json({ message: 'Manjkajo podatki: datoteka_id, besedilo ali poskodovano!' });
     }
-
     try {
         if (!(await utils.datotekaObstaja(datoteka_id))) {
             return res.status(404).json({ message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!` });
@@ -173,9 +173,9 @@ router.post('/', async (req, res, next) => {
 
         if (result.affectedRows === 1) {
             const id = result.insertId; //id novega komentarja
-            const urlVira = utils.urlVira(req, `/komentarji/${id}`);
+            const urlVira = utils.urlVira(req, `/api/komentarji/${id}`);
             res.location(urlVira);
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Komentar uspešno dodan.',
                 url:urlVira
             });
@@ -222,7 +222,7 @@ router.delete('/:id', async (req, res, next) => {
         const [result] = await pool.execute('DELETE FROM komentar WHERE id = ?', [id]);
         
         if (result.affectedRows === 1) {
-            res.status(204).send();
+            return res.status(204).send();
         } 
         throw new Error('Brisanje komentarja ni bilo uspešno!');
     } catch (err) {
@@ -252,13 +252,10 @@ router.delete('/:id', async (req, res, next) => {
  *             properties:
  *               datoteka_id:
  *                 type: integer
- *                 description: ID datoteke, ki ji pripada komentar
  *               besedilo:
  *                 type: string
- *                 description: Besedilo komentarja
  *               poskodovano:
- *                 type: integer
- *                 description: Zastavica, če je datoteka poškodovana (1 -> je poškodovana)
+ *                 type: boolean
  *     responses:
  *       204:
  *         description: Uspešno posodobljen komentar
@@ -290,7 +287,7 @@ router.put('/:id', async (req, res, next) => {
         const [result] = await pool.execute(sql, [besedilo, poskodovano, id]);
         
         if (result.affectedRows === 1) {
-            res.status(204).send(); //204 je No Content - tut če pripnemo message, se ne prikaže
+            return res.status(204).send(); //204 je No Content - tut če pripnemo message, se ne prikaže
         } 
         throw new Error('Posodabljanje komentarja ni bilo uspešno!');
     } catch (err) {

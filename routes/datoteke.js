@@ -19,8 +19,12 @@ const { fileTypeFromBuffer } = require('file-type');
  *           type: string
  *         tip:
  *           type: string
+ *           enum: 
+ *             - slika
+ *             - audio
+ *             - video
+ *             - pdf
  */
-
 /**
  * @swagger
  * /api/datoteke:
@@ -134,7 +138,7 @@ router.get('/:id', async (req, res, next) => {
  *               ime:
  *                 type: string
  *               tip:
- *                 type: string
+ *                 $ref: '#/components/schemas/Datoteke/properties/tip'
  *               slika:
  *                 type: string
  *                 format: binary
@@ -151,7 +155,7 @@ router.get('/:id', async (req, res, next) => {
  *                 url:
  *                   type: string
  *       400:
- *         description: Manjkajo podatki za dodajanje nove datoteke ali vsebina ne ustreza izbranemu tipu
+ *         description: Manjkajo podatki za dodajanje nove datoteke ali vsebina ne ustreza izbranemu tipu ali tip datoteke ni pravilen
  *       409: 
  *         description: Datoteka z istim imenom že obstaja  
  *       415:
@@ -165,6 +169,13 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
     if(!ime || !tip || !req.file){
         return res.status(400).json({message: 'Manjkajo podatki za dodajanje nove datoteke!'})
         //ce posljes kodo namesto message, lahko jezik nastavis na klientu
+    }
+
+    const dovoljeniTipi = ['slika', 'audio', 'video', 'pdf'];
+    if (!dovoljeniTipi.includes(tip)) {
+        return res.status(400).json({
+            message: `Neveljaven tip datoteke! Dovoljeni tipi: ${dovoljeniTipi.join(', ')}`
+        });
     }
 
     const vsebina = req.file.buffer; //BLOB podatki
@@ -197,9 +208,9 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
 
         if (result.affectedRows === 1) {
             const id = result.insertId; //id nove datoteke
-            const urlVira = utils.urlVira(req, `/datoteke/${id}`);
+            const urlVira = utils.urlVira(req, `/api/datoteke/${id}`);
             res.location(urlVira);
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Datoteka uspešno dodana.',
                 url:urlVira
             });
@@ -248,7 +259,7 @@ router.delete('/:id', async (req, res, next) => {
         const [result] = await pool.execute('DELETE FROM datoteka WHERE id = ?', [id]);
         
         if (result.affectedRows === 1) {
-            res.status(204).send();
+            return res.status(204).send();
         } 
         throw new Error('Brisanje datoteke ni bilo uspešno!');
     } catch (err) {
@@ -303,14 +314,14 @@ router.put('/:id', async (req, res, next) => {
         }
 
         if(!ime){
-            return res.status(400).json({message: 'Manjka podatek *ime* za posodabljanje datoteke ali pa ni pravilno vnesen!'});
+            return res.status(400).json({message: 'Manjka podatek *ime* za posodabljanje datoteke!'});
         }
 
         const sql = 'UPDATE datoteka SET ime=? WHERE id=?';
         const [result] = await pool.execute(sql, [ime, id]);
         
         if (result.affectedRows === 1) {
-            res.status(204).send(); 
+            return res.status(204).send(); 
         } 
         throw new Error('Spreminjanje datoteke ni bilo uspešno!');
     } catch (err) {
@@ -383,9 +394,9 @@ router.post('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
 
         if (result.affectedRows === 1) {
             const id = result.insertId; //id nove labele
-            const urlVira = utils.urlVira(req, `/datoteke/${datoteka_id}/labele/${labela_id}`);
+            const urlVira = utils.urlVira(req, `/api/datoteke/${datoteka_id}/labele/${labela_id}`);
             res.location(urlVira);
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Labela uspešno dodana na datoteko.',
                 url:urlVira
             });
@@ -448,7 +459,7 @@ router.delete('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
         const [result] = await pool.execute(sql, [datoteka_id, labela_id]);
 
         if (result.affectedRows === 1) {
-            res.status(204).send();
+            return res.status(204).send();
         }
         throw new Error('Brisanje labele iz datoteke ni bilo uspešno!');
     } catch (err) {

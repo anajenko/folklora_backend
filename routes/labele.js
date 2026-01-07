@@ -18,6 +18,12 @@ const upload = multer();
  *           type: string
  *         tip:
  *           type: string
+ *           enum: 
+ *             - pokrajina
+ *             - tip_oblacila
+ *             - spol
+ *             - velikost
+ *             - drugo
  */
 
 /**
@@ -34,7 +40,7 @@ const upload = multer();
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Labela'
+ *                 $ref: '#/components/schemas/Labele'
  *       500:
  *         description: Notranja napaka strežnika
  */
@@ -42,7 +48,6 @@ router.get('/', async (req, res, next) => {
     try {
         const [rows] = await pool.execute('SELECT id, naziv, tip FROM labela');
         res.status(200).json(rows);		// Pošljemo podatke uporabniku kot JSON
-
     } catch (err) {
         next(err);
 	}
@@ -67,14 +72,7 @@ router.get('/', async (req, res, next) => {
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 naziv:
- *                   type: string
- *                 tip:
- *                   type: string
+ *               $ref: '#/components/schemas/Labele'
  *       400:
  *         description: Neustrezen format za {id} labele
  *       404:
@@ -96,7 +94,6 @@ router.get('/:id', async (req, res, next) => {
         const [result] = await pool.execute(sql, [id]);
 
         res.status(200).json(result);
-
     } catch (err) {
         next(err);
     }
@@ -104,9 +101,9 @@ router.get('/:id', async (req, res, next) => {
 
 /**
  * @swagger
- * /api/labele/{id}/datoteke: 
+ * /api/labele/{id}/datoteke:
  *   get:
- *     summary: Pridobivanje datotek z labelo z {id} TODO PREVERI SWAGGER !!! - NE DELA POSILJANJE REQUESTA
+ *     summary: Pridobivanje datotek z labelo z {id} - brez slike
  *     tags: [Labele]
  *     parameters:
  *       - in: path
@@ -123,7 +120,19 @@ router.get('/:id', async (req, res, next) => {
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Labele'
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   ime:
+ *                     type: string
+ *                   tip:
+ *                     type: string
+ *                     enum: 
+ *                       - slika
+ *                       - audio
+ *                       - video
+ *                       - pdf
  *       400:
  *         description: Neustrezen format za {id} labele
  *       404:
@@ -145,7 +154,7 @@ router.get('/:id/datoteke', async (req, res, next) => {
         }
 
         const sql = `
-            SELECT id, ime, tip, vsebina 
+            SELECT id, ime, tip 
             FROM datoteka d
             JOIN datoteka_labela dl ON d.id = dl.datoteka_id
             WHERE dl.labela_id = ?
@@ -153,7 +162,6 @@ router.get('/:id/datoteke', async (req, res, next) => {
         const [result] = await pool.execute(sql, [id]);
 
         res.status(200).json(result);
-
     } catch (err) {
         next(err);
     }
@@ -180,18 +188,11 @@ router.get('/:id/datoteke', async (req, res, next) => {
  *             schema:
  *               type: array
  *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                   naziv:
- *                     type: string
- *                   tip:
- *                     type: string
+ *                 $ref: '#/components/schemas/Labele'
  *       400:
  *         description: Neustrezen format za {id} datoteke
  *       404:
- *         description: Datoteka z visanim {datoteka_id} ne obstaja
+ *         description: Datoteka z vpisanim {datoteka_id} ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
@@ -215,7 +216,6 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
         const [result] = await pool.execute(sql, [datoteka_id]);
 
         res.status(200).json(result);
-
     } catch (err) {
         next(err);
     }
@@ -237,7 +237,7 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
  *               naziv:
  *                 type: string
  *               tip:
- *                 type: string
+ *                 $ref: '#/components/schemas/Labele/properties/tip'
  *     responses:
  *       201:
  *         description: Labela uspešno dodana
@@ -251,7 +251,7 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
  *                 url:
  *                   type: string
  *       400:
- *         description: Manjkajo podatki za dodajanje nove labele
+ *         description: Manjkajo podatki za dodajanje nove labele ali tip ni pravilen
  *       409:
  *         description: Labela z istim imenom že obstaja
  *       500:
@@ -264,6 +264,12 @@ router.post('/', upload.none(), async (req, res, next) => { // todo upload.none 
         return res.status(400).json({ message: 'Manjkajo podatki: naziv ali tip!' });
     }
 
+    const dovoljeniTipi = ['pokrajina', 'tip_oblacila', 'spol', 'velikost', 'drugo'];
+    if (!dovoljeniTipi.includes(tip)) {
+        return res.status(400).json({
+            message: `Neveljaven tip labele! Dovoljeni tipi: ${dovoljeniTipi.join(', ')}`
+        });
+    }
     try {
         //ali že obstaja labela z istim imenom
         const [rows] = await pool.execute('SELECT id FROM labela WHERE naziv = ?', [naziv]);
@@ -276,9 +282,9 @@ router.post('/', upload.none(), async (req, res, next) => { // todo upload.none 
 
         if (result.affectedRows === 1) {
             const id = result.insertId; //id nove labele
-            const urlVira = utils.urlVira(req, `/labele/${id}`);
+            const urlVira = utils.urlVira(req, `/api/labele/${id}`);
             res.location(urlVira);
-            res.status(201).json({
+            return res.status(201).json({
                 message: 'Labela uspešno dodana.',
                 url:urlVira
             });
@@ -325,7 +331,7 @@ router.delete('/:id', async (req, res, next) => {
         const [result] = await pool.execute('DELETE FROM labela WHERE id = ?', [id]);
         
         if (result.affectedRows === 1) {
-            res.status(204).send();
+            return res.status(204).send();
         } 
         throw new Error('Brisanje labele ni bilo uspešno!');
     } catch (err) {
