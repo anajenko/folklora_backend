@@ -19,32 +19,25 @@ const { fileTypeFromBuffer } = require('file-type');
  *           type: string
  *         tip:
  *           type: string
- *     Labele:
- *       type: object
- *       properties:
- *         id:
- *           type: integer
- *         naziv:
- *           type: string
- *         tip:
- *           type: string
  */
 
 /**
  * @swagger
  * /api/datoteke:
  *   get:
- *     summary: Get all datoteke
+ *     summary: Pridobivanje vseh datotek (id, ime, tip) brez slike
  *     tags: [Datoteke]
  *     responses:
  *       200:
- *         description: List of datoteke SPREMNI TODO !!!
+ *         description: Uspešno vrnjen seznam vseh datotek
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Datoteke'
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.get('/', async (req, res, next) => { // = '/datoteke'
     try {
@@ -60,7 +53,7 @@ router.get('/', async (req, res, next) => { // = '/datoteke'
  * @swagger
  * /api/datoteke/{id}:
  *   get:
- *     summary: Get a material by ID NAPISI DA TO VRACA SAMO SLIKO KER SAM TO RABIS BLA BLA TODO !!!
+ *     summary: Pridobivanje atriubuta vsebina datoteke z {id} - samo slika
  *     tags: [Datoteke]
  *     parameters:
  *       - in: path
@@ -68,36 +61,40 @@ router.get('/', async (req, res, next) => { // = '/datoteke'
  *         required: true
  *         schema:
  *           type: integer
- *         description: Material ID
+ *         description: ID datoteke
  *     responses:
  *       200:
- *         description: Material found
+ *         description: Vsebina datoteke
  *         content:
- *           application/json:
+ *           image/jpeg:
  *             schema:
- *               $ref: '#/components/schemas/Material'
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Neustrezen format za {id} datoteke
  *       404:
- *         description: Material not found
+ *         description: Datoteka z vpisanim {id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.get('/:id', async (req, res, next) => {
     try {
 		const id = req.params.id;
 
-        if (!/^\d+$/.test(id)) { //regex: any digit & one or more
-            return res.status(400).json({ message: 'Neustrezen format za ID datoteke' });
+        if (!/^\d+$/.test(id)) { //regex: številka & en ali več
+            return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
+        }
+
+		if (!(await utils.datotekaObstaja(id))) {
+            return res.status(404).json({
+                message: `Datoteka z ID-jem '${id}' ne obstaja!`
+            });
         }
 
         const [rows] = await pool.execute('SELECT ime, tip, vsebina FROM datoteka WHERE id=?', [id]);
-        
-		if (rows.length === 0) {
-            return res.status(404).json({
-                message: `Datoteka z ID-jem '${id}' ne obstaja.`
-            });
-        }
-        
         const file = rows[0];
 
-        // Set proper MIME type based on 'tip'
+        // nastavimo pravi MIME glede na 'tip'
         let contentType = 'application/octet-stream';
         switch (file.tip) {
             case 'slika':
@@ -115,62 +112,7 @@ router.get('/:id', async (req, res, next) => {
         }
 
         res.setHeader('Content-Type', contentType);
-        res.send(file.vsebina); // send raw BLOB 
-    } catch (err) {
-        next(err);
-    }
-});
-
-/**
- * @swagger
- * /api/datoteke/labele/{labela_id}: 
- *   get:
- *     summary: Get all files with a specific label TODO PREVERI SWAGGER !!! - NE DELA POSILJANJE REQUESTA
- *     tags: [Datoteke]
- *     parameters:
- *       - in: path
- *         name: labela_id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID of the label
- *     responses:
- *       200:
- *         description: List of files with the label
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Material'
- *       400:
- *         description: Invalid label ID
- *       404:
- *         description: Label not found
- */
-//pridobivanje vseh datotek z labelo :id
-router.get('/labele/:labela_id', async (req, res, next) => {
-    try {
-		const id = req.params.labela_id;
-       
-        if (!/^\d+$/.test(id)) { //regex: any digit & one or more
-            return res.status(400).json({ message: 'Neustrezen format za ID labele.' });
-        }
-
-        if (!(await utils.labelaObstaja(id))) { // todo poglej ce sm prou napisal !!!!
-            return res.status(404).json({ message: `Labela z ID-jem '${id}' ne obstaja.` });
-        }
-
-        const sql = `
-            SELECT id, ime, tip, vsebina 
-            FROM datoteka d
-            JOIN datoteka_labela dl ON d.id = dl.datoteka_id
-            WHERE dl.labela_id = ?
-        `;
-        const [result] = await pool.execute(sql, [id]);
-
-        res.status(200).json(result);
-
+        res.send(file.vsebina); // pošljemo raw BLOB 
     } catch (err) {
         next(err);
     }
@@ -180,7 +122,7 @@ router.get('/labele/:labela_id', async (req, res, next) => {
  * @swagger
  * /api/datoteke:
  *   post:
- *     summary: Add a new material
+ *     summary: Dodajanje nove datoteke
  *     tags: [Datoteke]
  *     requestBody:
  *       required: true
@@ -198,9 +140,24 @@ router.get('/labele/:labela_id', async (req, res, next) => {
  *                 format: binary
  *     responses:
  *       201:
- *         description: Material created
+ *         description: Datoteka uspešno dodana
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 url:
+ *                   type: string
  *       400:
- *         description: Bad request
+ *         description: Manjkajo podatki za dodajanje nove datoteke ali vsebina ne ustreza izbranemu tipu
+ *       409: 
+ *         description: Datoteka z istim imenom že obstaja  
+ *       415:
+ *         description: Nepodprt tip datoteke
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.post('/', upload.single('slika'), async (req, res, next) => {
     const {ime, tip} = req.body;
@@ -221,7 +178,7 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
         //preverim dejanski tip vnesene datoteke
         const detectedType = await fileTypeFromBuffer(vsebina);
         if (!detectedType) {
-            return res.status(415).json({message: 'Nepodprt tip datoteke!'}) // TODO NAPISI SI TO V SWAGGER
+            return res.status(415).json({message: 'Nepodprt tip datoteke!'});
         }
         // Mapiranje MIME -> moj tip
         const mimeMap = {
@@ -243,11 +200,11 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
             const urlVira = utils.urlVira(req, `/datoteke/${id}`);
             res.location(urlVira);
             res.status(201).json({
-                message: 'Datoteka uspešno dodana!',
+                message: 'Datoteka uspešno dodana.',
                 url:urlVira
             });
         } 
-        throw new Error('Dodajanje datoteke ni bilo uspešno.');
+        throw new Error('Dodajanje datoteke ni bilo uspešno!');
     } catch (err) {
         next(err);
     }
@@ -257,7 +214,7 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
  * @swagger
  * /api/datoteke/{id}:
  *   delete:
- *     summary: Delete a file by ID
+ *     summary: Brisanje obstoječe datoteke z {id}
  *     tags: [Datoteke]
  *     parameters:
  *       - in: path
@@ -265,25 +222,27 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the file to delete
+ *         description: ID datoteke za brisanje
  *     responses:
  *       204:
- *         description: File deleted successfully
+ *         description: Datoteka je bila uspešno izbrisana
  *       400:
- *         description: Invalid file ID
+ *         description: Neustrezen format za {id} datoteke
  *       404:
- *         description: File not found
+ *         description: Datoteka z vpisanim {id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.delete('/:id', async (req, res, next) => {
     const id = req.params.id;
 
     if (!/^\d+$/.test(id)) {
-        return res.status(400).json({ message: 'Neustrezen format za ID datoteke' });
+        return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
     }
 
     try {        
         if (!(await utils.datotekaObstaja(id))) {
-            return res.status(404).json({ message: 'Datoteka ni najdena.' });
+            return res.status(404).json({ message: `Datoteka z ID-jem '${id}' ne obstaja!` });
         }
         
         const [result] = await pool.execute('DELETE FROM datoteka WHERE id = ?', [id]);
@@ -291,7 +250,7 @@ router.delete('/:id', async (req, res, next) => {
         if (result.affectedRows === 1) {
             res.status(204).send();
         } 
-        throw new Error('Brisanje datoteke ni bilo uspešno.');
+        throw new Error('Brisanje datoteke ni bilo uspešno!');
     } catch (err) {
         next(err);
     }
@@ -301,7 +260,7 @@ router.delete('/:id', async (req, res, next) => {
  * @swagger
  * /api/datoteke/{id}:
  *   put:
- *     summary: Update a file's name
+ *     summary: Posodabljanje imena datoteke z {id}
  *     tags: [Datoteke]
  *     parameters:
  *       - in: path
@@ -309,7 +268,7 @@ router.delete('/:id', async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the file to update
+ *         description: ID datoteke
  *     requestBody:
  *       required: true
  *       content:
@@ -319,30 +278,32 @@ router.delete('/:id', async (req, res, next) => {
  *             properties:
  *               ime:
  *                 type: string
- *                 description: New name of the file
+ *                 description: Novo ime datoteke
  *     responses:
  *       204:
- *         description: File updated successfully
+ *         description: Uspešno posodobljena datoteka
  *       400:
- *         description: Missing or invalid data
+ *         description: Manjkajo podatki za shranjevanje datoteke ali format za {id} datoteke ni ustrezen
  *       404:
- *         description: File not found
+ *         description: Datoteka z vpisanim {id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.put('/:id', async (req, res, next) => {
     const id = req.params.id;
     const {ime} = req.body; //samo 'ime' se lahko posodobi
 
     if (!/^\d+$/.test(id)) {
-        return res.status(400).json({ message: 'Neustrezen format za ID datoteke' });
+        return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
     }
     
     try{
         if (!(await utils.datotekaObstaja(id))) {
-            return res.status(404).json({message: 'Datoteka ne obstaja!'});
+            return res.status(404).json({message: `Datoteka z ID-jem '${id}' ne obstaja!`});
         }
 
         if(!ime){
-            return res.status(400).json({message: 'Manjka podatek *ime* za posodabljanje datoteke ali pa ni pravilno vnesen'});
+            return res.status(400).json({message: 'Manjka podatek *ime* za posodabljanje datoteke ali pa ni pravilno vnesen!'});
         }
 
         const sql = 'UPDATE datoteka SET ime=? WHERE id=?';
@@ -351,7 +312,7 @@ router.put('/:id', async (req, res, next) => {
         if (result.affectedRows === 1) {
             res.status(204).send(); 
         } 
-        throw new Error('Spreminjanje datoteke ni bilo uspešno.');
+        throw new Error('Spreminjanje datoteke ni bilo uspešno!');
     } catch (err) {
         next(err);
     }
@@ -361,7 +322,7 @@ router.put('/:id', async (req, res, next) => {
  * @swagger
  * /api/datoteke/{datoteka_id}/labele/{labela_id}:
  *   post:
- *     summary: Add a label to a file
+ *     summary: Dodajanje labele na datoteko
  *     tags: [Datoteke]
  *     parameters:
  *       - in: path
@@ -369,43 +330,52 @@ router.put('/:id', async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the file
+ *         description: ID datoteke
  *       - in: path
  *         name: labela_id
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the label
+ *         description: ID labele
  *     responses:
  *       201:
- *         description: Label added to the file
+ *         description: Labela uspešno dodana na datoteko
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 url:
+ *                   type: string
  *       400:
- *         description: Missing or invalid parameters
+ *         description: Manjkajo podatki datoteka_id ali labela_id ali {id} ni pravega formata
  *       404:
- *         description: File or label not found
+ *         description: Datoteka z {datoteka_id} ali labela z {labela_id} ne obstaja
  *       409:
- *         description: Label is already associated with the file
+ *         description: Ta labela je že povezana z datoteko
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 // dodajanje labele :lab_id na datoteko :dat_id ----> datoteke/:id/labele/:labela_id
 router.post('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
     const {datoteka_id, labela_id} = req.params;
 
     if (!datoteka_id || !labela_id) {
-        return res.status(400).json({ message: 'Manjkajo podatki: datoteka_id ali labela_id.' });
+        return res.status(400).json({ message: 'Manjkajo podatki: datoteka_id ali labela_id!' });
     }
     if (!/^\d+$/.test(datoteka_id) || !/^\d+$/.test(labela_id)) {
         return res.status(400).json({ message: 'ID mora biti številka.' });
     }
 
     try {
-        // Preverimo, če datoteka obstaja
         if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({ message: 'Datoteka ne obstaja!' });
+            return res.status(404).json({ message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!` });
         }
 
-        // Preverimo, če labela obstaja
         if (!(await utils.labelaObstaja(labela_id))) {
-            return res.status(404).json({ message: 'Labela ne obstaja!' });
+            return res.status(404).json({ message: `Labela z ID-jem '${labela_id}' ne obstaja!` });
         }
         
         const sql = 'INSERT INTO datoteka_labela (datoteka_id, labela_id) VALUES (?, ?)';
@@ -416,14 +386,14 @@ router.post('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
             const urlVira = utils.urlVira(req, `/datoteke/${datoteka_id}/labele/${labela_id}`);
             res.location(urlVira);
             res.status(201).json({
-                message: 'Labela uspešno dodana na datoteko!',
+                message: 'Labela uspešno dodana na datoteko.',
                 url:urlVira
             });
         }
-        throw new Error('Dodajanje labele na datoteko ni bilo uspešno.');
+        throw new Error('Dodajanje labele na datoteko ni bilo uspešno!');
     } catch (err) {
         if (err.code === 'ER_DUP_ENTRY') {
-            return res.status(409).json({ message: 'Ta labela je že povezana z datoteko.' });
+            return res.status(409).json({ message: 'Ta labela je že povezana z datoteko!' });
         } else {
             next(err);
         }
@@ -434,7 +404,7 @@ router.post('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
  * @swagger
  * /api/datoteke/{datoteka_id}/labele/{labela_id}:
  *   delete:
- *     summary: Remove a label from a file
+ *     summary: Brisanje labele z datoteke
  *     tags: [Datoteke]
  *     parameters:
  *       - in: path
@@ -442,27 +412,29 @@ router.post('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the file
+ *         description: ID datoteke
  *       - in: path
  *         name: labela_id
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the label
+ *         description: ID labele
  *     responses:
  *       204:
- *         description: Label removed from file
+ *         description: Labela je bila uspešno odstranjena z datoteke
  *       400:
- *         description: Invalid file or label ID
+ *         description: Neustrezen format za {id} datoteke ali {id} labele
  *       404:
- *         description: File-label association not found
+ *         description: Povezava datoteka_labela ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 // brisanje labele :lab_id z datoteke :dat_id --------> datoteke/:id/labele/:labela_id
 router.delete('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
     const {datoteka_id, labela_id} = req.params;
 
     if (!/^\d+$/.test(datoteka_id) || !/^\d+$/.test(labela_id)) {
-        return res.status(400).json({ message: 'ID mora biti številka.' });
+        return res.status(400).json({ message: 'ID mora biti številka!' });
     }
 
     try {
@@ -478,7 +450,7 @@ router.delete('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
         if (result.affectedRows === 1) {
             res.status(204).send();
         }
-        throw new Error('Brisanje labele iz datoteke ni bilo uspešno.');
+        throw new Error('Brisanje labele iz datoteke ni bilo uspešno!');
     } catch (err) {
         next(err);
     }

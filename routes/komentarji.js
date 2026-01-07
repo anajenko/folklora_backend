@@ -24,7 +24,7 @@ const utils = require('../utils/utils.js');
  * @swagger
  * /api/komentarji/datoteka/{datoteka_id}:
  *   get:
- *     summary: Get all comments for a material
+ *     summary: Pridobivanje vseh komentarjev datoteke z {datoteka_id}
  *     tags: [Komentarji]
  *     parameters:
  *       - in: path
@@ -34,15 +34,19 @@ const utils = require('../utils/utils.js');
  *           type: integer
  *     responses:
  *       200:
- *         description: List of comments
+ *         description: Uspešno vrnjen seznam vseh komentarjev datoteke
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Komentar'
- *       204:
- *         description: No comments
+ *                 $ref: '#/components/schemas/Komentarji'
+ *       400:
+ *         description: Neustrezen format za {id} datoteke
+ *       404:
+ *         description: Datoteka z vpisanim {id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 //pridobivanje vseh komentarjev datoteke s posredovanim datoteka_id
 router.get('/datoteka/:datoteka_id', async (req, res, next) => {
@@ -50,11 +54,11 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
 		const datoteka_id = req.params.datoteka_id;
         
         if (!/^\d+$/.test(datoteka_id)) {
-            return res.status(400).json({ message: 'Neustrezen format za ID datoteke' });
+            return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
         }
 
         if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({message: 'Datoteka ne obstaja!'});
+            return res.status(404).json({message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!`});
         }
                 
         const sql = 'SELECT id, datoteka_id, besedilo, poskodovano FROM komentar WHERE datoteka_id = ?';
@@ -71,7 +75,7 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
  * @swagger
  * /api/komentarji/{id}:
  *   get:
- *     summary: Get a comment by ID
+ *     summary: Pridobivanje komentarja z vpisanim {id}
  *     tags: [Komentarji]
  *     parameters:
  *       - in: path
@@ -79,10 +83,10 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the comment
+ *         description: ID komentarja
  *     responses:
  *       200:
- *         description: Comment details
+ *         description: Uspešno vrnjen komentar z vpisanim {id}
  *         content:
  *           application/json:
  *             schema:
@@ -97,18 +101,20 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
  *                 poskodovano:
  *                   type: integer
  *       400:
- *         description: Invalid comment ID
+ *         description: Neustrezen format za {id} komentarja
  *       404:
- *         description: Comment not found
+ *         description: Komentar z vpisanim {id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.get('/:id', async (req, res, next) => {
     try {
 		const id = req.params.id;
         if (!/^\d+$/.test(id)) {
-            return res.status(400).json({ message: 'Neustrezen format za ID komentarja' });
+            return res.status(400).json({ message: 'Neustrezen format za ID komentarja!' });
         }
         if (!(await utils.komentarObstaja(id))) {
-            return res.status(404).json({message: 'Komentar ne obstaja!'});
+            return res.status(404).json({message: `Komentar z ID-jem '${id}' ne obstaja!`});
         }
                 
         const sql = 'SELECT id, datoteka_id, besedilo, poskodovano FROM komentar WHERE id = ?';
@@ -125,7 +131,7 @@ router.get('/:id', async (req, res, next) => {
  * @swagger
  * /api/komentarji:
  *   post:
- *     summary: Add a comment to a material
+ *     summary: Dodajanje komentarja na datoteko
  *     tags: [Komentarji]
  *     requestBody:
  *       required: true
@@ -142,20 +148,24 @@ router.get('/:id', async (req, res, next) => {
  *                 type: boolean
  *     responses:
  *       201:
- *         description: Comment created
+ *         description: Komentar uspešno dodan na datoteko
  *       400:
- *         description: Bad request
+ *         description: Manjkajo podatki za dodajanje komentarja
+ *       404:
+ *         description: Datoteka z {datoteka_id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.post('/', async (req, res, next) => {
     const {datoteka_id, besedilo, poskodovano} = req.body;
 
     if (!datoteka_id || (!besedilo && (poskodovano == 0 || poskodovano === undefined))) { // todo stestiraj, ce ne pa odstrani un === undefidne
-        return res.status(400).json({ message: 'Manjkajo podatki: datoteka_id, besedilo ali poskodovano.' });
+        return res.status(400).json({ message: 'Manjkajo podatki: datoteka_id, besedilo ali poskodovano!' });
     }
 
     try {
         if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({ message: 'Datoteka ne obstaja!' });
+            return res.status(404).json({ message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!` });
         }
 
         const sql = 'INSERT INTO komentar (datoteka_id, besedilo, poskodovano) VALUES (?, ?, ?)';
@@ -166,13 +176,13 @@ router.post('/', async (req, res, next) => {
             const urlVira = utils.urlVira(req, `/komentarji/${id}`);
             res.location(urlVira);
             res.status(201).json({
-                message: 'Komentar uspešno dodan!',
+                message: 'Komentar uspešno dodan.',
                 url:urlVira
             });
         } 
-        throw new Error('Dodajanje komentarja ni bilo uspešno.');
+        throw new Error('Dodajanje komentarja ni bilo uspešno!');
     } catch (err) {
-        res.status(500).json({ message: 'Napaka strežnika pri dodajanju komentarja.' });
+        next(err);
     }
 });
 
@@ -180,7 +190,7 @@ router.post('/', async (req, res, next) => {
  * @swagger
  * /api/komentarji/{id}:
  *   delete:
- *     summary: Delete a comment by ID
+ *     summary: Brisanje obstoječega komentarja z {id}
  *     tags: [Komentarji]
  *     parameters:
  *       - in: path
@@ -188,31 +198,33 @@ router.post('/', async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the comment to delete
+ *         description: ID komentarja
  *     responses:
  *       204:
- *         description: Comment deleted successfully
+ *         description: Komentar je bil uspešno izbrisan
  *       400:
- *         description: Invalid comment ID
+ *         description: Neustrezen format za {id} komentarja
  *       404:
- *         description: Comment not found
+ *         description: Komentar z vpisanim {id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.delete('/:id', async (req, res, next) => {
     const id = req.params.id;
     if (!/^\d+$/.test(id)) {
-        return res.status(400).json({ message: 'Neustrezen format za ID komentarja' });
+        return res.status(400).json({ message: 'Neustrezen format za ID komentarja!' });
     }
 
     try {        
         if (!(await utils.komentarObstaja(id))) {
-            return res.status(404).json({ message: 'Komentar ni najden.' });
+            return res.status(404).json({ message: `Komentar z ID-jem '${id}' ne obstaja!` });
         }
         const [result] = await pool.execute('DELETE FROM komentar WHERE id = ?', [id]);
         
         if (result.affectedRows === 1) {
             res.status(204).send();
         } 
-        throw new Error('Brisanje komentarja ni bilo uspešno.');
+        throw new Error('Brisanje komentarja ni bilo uspešno!');
     } catch (err) {
         next(err);
     }
@@ -222,7 +234,7 @@ router.delete('/:id', async (req, res, next) => {
  * @swagger
  * /api/komentarji/{id}:
  *   put:
- *     summary: Update a comment's content
+ *     summary: Posodabljanje vsebine komentarja z vpisanim {id}
  *     tags: [Komentarji]
  *     parameters:
  *       - in: path
@@ -230,7 +242,7 @@ router.delete('/:id', async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the comment to update
+ *         description: ID komentarja
  *     requestBody:
  *       required: true
  *       content:
@@ -240,36 +252,38 @@ router.delete('/:id', async (req, res, next) => {
  *             properties:
  *               datoteka_id:
  *                 type: integer
- *                 description: ID of the file the comment belongs to
+ *                 description: ID datoteke, ki ji pripada komentar
  *               besedilo:
  *                 type: string
- *                 description: Text of the comment
+ *                 description: Besedilo komentarja
  *               poskodovano:
  *                 type: integer
- *                 description: Flag if the comment is marked
+ *                 description: Zastavica, če je datoteka poškodovana (1 -> je poškodovana)
  *     responses:
  *       204:
- *         description: Comment updated successfully
+ *         description: Uspešno posodobljen komentar
  *       400:
- *         description: Missing or invalid data
+ *         description: Manjkajo podatki za shranjevanje komentarja ali format za {id} ni ustrezen
  *       404:
- *         description: File or comment not found
+ *         description: Datoteka z vpisanim {datoteka_id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.put('/:id', async (req, res, next) => {
     const id = req.params.id;
     const {datoteka_id, besedilo, poskodovano} = req.body; //samo 'besedilo' ali 'poskodovano' se lahko posodobi
 
     if (!/^\d+$/.test(datoteka_id) || !/^\d+$/.test(id)) {
-        return res.status(400).json({ message: 'ID mora biti številka.' });
+        return res.status(400).json({ message: 'ID mora biti številka!' });
     }
 
     try{
         if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({message: 'Datoteka ne obstaja!'});
+            return res.status(404).json({message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!`});
         }
 
         if(!datoteka_id || (!besedilo && (poskodovano == 0 || poskodovano === undefined))){
-            return res.status(400).json({message: 'Manjkajo podatki za posodabljanje komentarja'});
+            return res.status(400).json({message: 'Manjkajo podatki za posodabljanje komentarja!'});
         }
 
         const sql = 'UPDATE komentar SET besedilo=?, poskodovano=? WHERE id=?';
@@ -278,7 +292,7 @@ router.put('/:id', async (req, res, next) => {
         if (result.affectedRows === 1) {
             res.status(204).send(); //204 je No Content - tut če pripnemo message, se ne prikaže
         } 
-        throw new Error('Spreminjanje komentarja ni bilo uspešno.');
+        throw new Error('Posodabljanje komentarja ni bilo uspešno!');
     } catch (err) {
         next(err);
     }

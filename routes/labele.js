@@ -24,27 +24,23 @@ const upload = multer();
  * @swagger
  * /api/labele:
  *   get:
- *     summary: Get all labels
+ *     summary: Pridobivanje vseh label
  *     tags: [Labele]
  *     responses:
  *       200:
- *         description: List of labels
+ *         description: Uspešno vrnjen seznam vseh label
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Labela'
- *       204:
- *         description: No labels
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.get('/', async (req, res, next) => {
     try {
-        const [rows, fields] = await pool.execute('SELECT id, naziv, tip FROM labela');
-        
-        if (rows.length === 0) { // tabela je prazna
-            return res.status(204).send(); //no content
-        }
+        const [rows] = await pool.execute('SELECT id, naziv, tip FROM labela');
         res.status(200).json(rows);		// Pošljemo podatke uporabniku kot JSON
 
     } catch (err) {
@@ -54,9 +50,120 @@ router.get('/', async (req, res, next) => {
 
 /**
  * @swagger
+ * /api/labele/{id}:
+ *   get:
+ *     summary: Pridobivanje labele z {id}
+ *     tags: [Labele]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID labele
+ *     responses:
+ *       200:
+ *         description: Uspešno vrnjena labela z vpisanim {id}
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 naziv:
+ *                   type: string
+ *                 tip:
+ *                   type: string
+ *       400:
+ *         description: Neustrezen format za {id} labele
+ *       404:
+ *         description: Labela z z vpisanim {id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
+ */
+router.get('/:id', async (req, res, next) => {
+    try {
+		const id = req.params.id;
+        if (!/^\d+$/.test(id)) {
+            return res.status(400).json({ message: 'Neustrezen format za ID labela!' });
+        }
+        if (!(await utils.labelaObstaja(id))) {
+            return res.status(404).json({message: `Labela z ID-jem '${id}' ne obstaja!`});
+        }
+                
+        const sql = 'SELECT id, naziv, tip FROM labela WHERE id = ?';
+        const [result] = await pool.execute(sql, [id]);
+
+        res.status(200).json(result);
+
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @swagger
+ * /api/labele/{id}/datoteke: 
+ *   get:
+ *     summary: Pridobivanje datotek z labelo z {id} TODO PREVERI SWAGGER !!! - NE DELA POSILJANJE REQUESTA
+ *     tags: [Labele]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID labele
+ *     responses:
+ *       200:
+ *         description: Uspešno vrnjen seznam datotek z labelo z vpisanim {id}
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Labele'
+ *       400:
+ *         description: Neustrezen format za {id} labele
+ *       404:
+ *         description: Labela z vpisanim {id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
+ */
+//pridobivanje vseh datotek z labelo :id
+router.get('/:id/datoteke', async (req, res, next) => {
+    try {
+		const id = req.params.id;
+       
+        if (!/^\d+$/.test(id)) { //regex: any digit & one or more
+            return res.status(400).json({ message: 'Neustrezen format za ID labele!' });
+        }
+
+        if (!(await utils.labelaObstaja(id))) { // todo poglej ce sm prou napisal !!!!
+            return res.status(404).json({ message: `Labela z ID-jem '${id}' ne obstaja!` });
+        }
+
+        const sql = `
+            SELECT id, ime, tip, vsebina 
+            FROM datoteka d
+            JOIN datoteka_labela dl ON d.id = dl.datoteka_id
+            WHERE dl.labela_id = ?
+        `;
+        const [result] = await pool.execute(sql, [id]);
+
+        res.status(200).json(result);
+
+    } catch (err) {
+        next(err);
+    }
+});
+
+/**
+ * @swagger
  * /api/labele/datoteka/{datoteka_id}:
  *   get:
- *     summary: Get all labels for a specific file
+ *     summary: Pridobivanje vseh label datoteke z {datoteka_id}
  *     tags: [Labele]
  *     parameters:
  *       - in: path
@@ -64,10 +171,10 @@ router.get('/', async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the file
+ *         description: ID datoteke
  *     responses:
  *       200:
- *         description: List of labels associated with the file
+ *         description: Uspešno vrnjen seznam vseh label datoteke
  *         content:
  *           application/json:
  *             schema:
@@ -82,19 +189,21 @@ router.get('/', async (req, res, next) => {
  *                   tip:
  *                     type: string
  *       400:
- *         description: Invalid file ID
+ *         description: Neustrezen format za {id} datoteke
  *       404:
- *         description: File not found
+ *         description: Datoteka z visanim {datoteka_id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 //pridobivanje vseh label datoteke s posredovanim datoteka_id
 router.get('/datoteka/:datoteka_id', async (req, res, next) => {
     try {
 		const datoteka_id = req.params.datoteka_id;
         if (!/^\d+$/.test(datoteka_id)) {
-            return res.status(400).json({ message: 'Neustrezen format za ID datoteke' });
+            return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
         }
         if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({message: 'Datoteka ne obstaja!'});
+            return res.status(404).json({message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!`});
         }
                 
         const sql = `
@@ -114,61 +223,9 @@ router.get('/datoteka/:datoteka_id', async (req, res, next) => {
 
 /**
  * @swagger
- * /api/labele/{id}:
- *   get:
- *     summary: Get label details by ID
- *     tags: [Labele]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: ID of the label
- *     responses:
- *       200:
- *         description: Label details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 naziv:
- *                   type: string
- *                 tip:
- *                   type: string
- *       400:
- *         description: Invalid label ID
- *       404:
- *         description: Label not found
- */
-router.get('/:id', async (req, res, next) => {
-    try {
-		const id = req.params.id;
-        if (!/^\d+$/.test(id)) {
-            return res.status(400).json({ message: 'Neustrezen format za ID labela' });
-        }
-        if (!(await utils.labelaObstaja(id))) {
-            return res.status(404).json({message: 'Labela ne obstaja!'});
-        }
-                
-        const sql = 'SELECT id, naziv, tip FROM labela WHERE id = ?';
-        const [result] = await pool.execute(sql, [id]);
-
-        res.status(200).json(result);
-
-    } catch (err) {
-        next(err);
-    }
-});
-
-/**
- * @swagger
  * /api/labele:
  *   post:
- *     summary: Add a new label
+ *     summary: Dodajanje nove labele
  *     tags: [Labele]
  *     requestBody:
  *       required: true
@@ -183,15 +240,28 @@ router.get('/:id', async (req, res, next) => {
  *                 type: string
  *     responses:
  *       201:
- *         description: Label created
+ *         description: Labela uspešno dodana
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 url:
+ *                   type: string
  *       400:
- *         description: Bad request
+ *         description: Manjkajo podatki za dodajanje nove labele
+ *       409:
+ *         description: Labela z istim imenom že obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
-router.post('/', upload.none(), async (req, res, next) => {
+router.post('/', upload.none(), async (req, res, next) => { // todo upload.none pomoje ne rabis - stestiraj
     const {naziv, tip} = req.body;
 
     if (!naziv || !tip) {
-        return res.status(400).json({ message: 'Manjkajo podatki: naziv ali tip.' });
+        return res.status(400).json({ message: 'Manjkajo podatki: naziv ali tip!' });
     }
 
     try {
@@ -209,11 +279,11 @@ router.post('/', upload.none(), async (req, res, next) => {
             const urlVira = utils.urlVira(req, `/labele/${id}`);
             res.location(urlVira);
             res.status(201).json({
-                message: 'Labela uspešno dodana!',
+                message: 'Labela uspešno dodana.',
                 url:urlVira
             });
         }
-        throw new Error('Dodajanje labele ni bilo uspešno.');
+        throw new Error('Dodajanje labele ni bilo uspešno!');
     } catch (err) {
         next(err);
     }
@@ -223,7 +293,7 @@ router.post('/', upload.none(), async (req, res, next) => {
  * @swagger
  * /api/labele/{id}:
  *   delete:
- *     summary: Delete a label by ID
+ *     summary: Brisanje obstoječe labele z {id}
  *     tags: [Labele]
  *     parameters:
  *       - in: path
@@ -231,33 +301,33 @@ router.post('/', upload.none(), async (req, res, next) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID of the label to delete
+ *         description: ID labele
  *     responses:
  *       204:
- *         description: Label deleted successfully
+ *         description: Labela je bila uspešno izbrisana
  *       400:
- *         description: Invalid label ID
+ *         description: Neustrezen format za {id} labele
  *       404:
- *         description: Label not found
+ *         description: Labela z vpisanim {id} ne obstaja
+ *       500:
+ *         description: Notranja napaka strežnika
  */
 router.delete('/:id', async (req, res, next) => {
     const id = req.params.id;
     if (!/^\d+$/.test(id)) {
-            return res.status(400).json({ message: 'Neustrezen format za ID labela' });
+            return res.status(400).json({ message: 'Neustrezen format za ID labela!' });
         }
 
-    try {
-        const [existingData] = await pool.execute('SELECT id FROM labela WHERE id = ?', [id]);
-        
-        if (existingData.length === 0) {
-            return res.status(404).json({ message: 'Labela ni najdena.' });
+    try {        
+        if (!(await utils.labelaObstaja(id))) {
+            return res.status(404).json({ message: `Labela z ID-jem '${id}' ne obstaja!` });
         }
         const [result] = await pool.execute('DELETE FROM labela WHERE id = ?', [id]);
         
         if (result.affectedRows === 1) {
             res.status(204).send();
         } 
-        throw new Error('Brisanje labele ni bilo uspešno.');
+        throw new Error('Brisanje labele ni bilo uspešno!');
     } catch (err) {
         next(err);
     }
