@@ -160,7 +160,7 @@ router.get('/:id', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
     const {datoteka_id, besedilo, poskodovano} = req.body;
 
-    if (!datoteka_id || (!besedilo && (poskodovano == 0 || poskodovano === undefined))) { // todo stestiraj, ce ne pa odstrani un === undefidne
+    if (!datoteka_id || (!besedilo && (poskodovano == 0 || poskodovano === undefined))) { 
         return res.status(400).json({ message: 'Manjkajo podatki: datoteka_id, besedilo ali poskodovano!' });
     }
     try {
