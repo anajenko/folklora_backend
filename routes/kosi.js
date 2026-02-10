@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../utils/db.js'); // uvozimo Connection Pool
 const utils = require('../utils/utils.js');
-const multer = require('multer'); // nalaganje datotek
+const multer = require('multer'); // nalaganje slik
 const upload = multer({storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 }}); // pomnilnik max 10MB
 const { fileTypeFromBuffer } = require('file-type');
 
@@ -10,7 +10,7 @@ const { fileTypeFromBuffer } = require('file-type');
  * @swagger
  * components:
  *   schemas:
- *     Datoteke:
+ *     Kosi:
  *       type: object
  *       properties:
  *         id:
@@ -24,29 +24,33 @@ const { fileTypeFromBuffer } = require('file-type');
  *             - audio
  *             - video
  *             - pdf
+ *         poskodovano:
+ *           type: boolean
+ *           description: Zastavica, če je kos poškodovan (1 -> je poškodovan)
+ *           default: false
  */
 /**
  * @swagger
- * /api/datoteke:
+ * /api/kosi:
  *   get:
- *     summary: Pridobivanje vseh datotek (id, ime, tip) brez slike
- *     tags: [Datoteke]
+ *     summary: Pridobivanje vseh kosov (id, ime, tip) brez slike
+ *     tags: [Kosi]
  *     responses:
  *       200:
- *         description: Uspešno vrnjen seznam vseh datotek
+ *         description: Uspešno vrnjen seznam vseh kosov
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Datoteke'
+ *                 $ref: '#/components/schemas/Kos'
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.get('/', async (req, res, next) => { // = '/datoteke'
+router.get('/', async (req, res, next) => { // = '/kosi'
     try {
         // Uporabimo pool.execute() za varno izvedbo poizvedbe
-        const [rows] = await pool.execute('SELECT id, ime, tip FROM datoteka');
+        const [rows] = await pool.execute('SELECT id, ime, tip, poskodovano FROM kos');
         res.status(200).json(rows);		// Pošljemo podatke uporabniku kot JSON
     } catch (err) {
         next(err);
@@ -55,29 +59,29 @@ router.get('/', async (req, res, next) => { // = '/datoteke'
 
 /**
  * @swagger
- * /api/datoteke/{id}:
+ * /api/kosi/{id}:
  *   get:
- *     summary: Pridobivanje atriubuta vsebina datoteke z {id} - samo slika
- *     tags: [Datoteke]
+ *     summary: Pridobivanje atriubuta vsebina kosa z {id} - samo slika
+ *     tags: [Kosi]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID datoteke
+ *         description: ID kosa
  *     responses:
  *       200:
- *         description: Vsebina datoteke
+ *         description: Vsebina kosa
  *         content:
  *           image/jpeg:
  *             schema:
  *               type: string
  *               format: binary
  *       400:
- *         description: Neustrezen format za {id} datoteke
+ *         description: Neustrezen format za {id} kosa
  *       404:
- *         description: Datoteka z vpisanim {id} ne obstaja
+ *         description: Kos z vpisanim {id} ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
@@ -86,16 +90,16 @@ router.get('/:id', async (req, res, next) => {
 		const id = req.params.id;
 
         if (!/^\d+$/.test(id)) { //regex: številka & en ali več
-            return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
+            return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
         }
 
-		if (!(await utils.datotekaObstaja(id))) {
+		if (!(await utils.kosObstaja(id))) {
             return res.status(404).json({
-                message: `Datoteka z ID-jem '${id}' ne obstaja!`
+                message: `Kos z ID-jem '${id}' ne obstaja!`
             });
         }
 
-        const [rows] = await pool.execute('SELECT ime, tip, vsebina FROM datoteka WHERE id=?', [id]);
+        const [rows] = await pool.execute('SELECT ime, tip, vsebina, poskodovano FROM kos WHERE id=?', [id]);
         const file = rows[0];
 
         // nastavimo pravi MIME glede na 'tip'
@@ -124,10 +128,10 @@ router.get('/:id', async (req, res, next) => {
 
 /**
  * @swagger
- * /api/datoteke:
+ * /api/kosi:
  *   post:
- *     summary: Dodajanje nove datoteke
- *     tags: [Datoteke]
+ *     summary: Dodajanje novega kosa
+ *     tags: [Kosi]
  *     requestBody:
  *       required: true
  *       content:
@@ -138,13 +142,14 @@ router.get('/:id', async (req, res, next) => {
  *               ime:
  *                 type: string
  *               tip:
- *                 $ref: '#/components/schemas/Datoteke/properties/tip'
+ *                 $ref: '#/components/schemas/Kos/properties/tip'
  *               slika:
  *                 type: string
  *                 format: binary
+ *                 description: Binarna vsebina kosa (slika, pdf, audio, video)
  *     responses:
  *       201:
- *         description: Datoteka uspešno dodana
+ *         description: Kos uspešno dodan
  *         content:
  *           application/json:
  *             schema:
@@ -155,11 +160,11 @@ router.get('/:id', async (req, res, next) => {
  *                 url:
  *                   type: string
  *       400:
- *         description: Manjkajo podatki za dodajanje nove datoteke ali vsebina ne ustreza izbranemu tipu ali tip datoteke ni pravilen
+ *         description: Manjkajo podatki za dodajanje novega kosa ali vsebina ne ustreza izbranemu tipu ali tip kosa ni pravilen
  *       409: 
- *         description: Datoteka z istim imenom že obstaja  
+ *         description: Kos z istim imenom že obstaja  
  *       415:
- *         description: Nepodprt tip datoteke
+ *         description: Nepodprt tip kosa
  *       500:
  *         description: Notranja napaka strežnika
  */
@@ -167,29 +172,29 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
     const {ime, tip} = req.body;
 
     if(!ime || !tip || !req.file){
-        return res.status(400).json({message: 'Manjkajo podatki za dodajanje nove datoteke!'})
+        return res.status(400).json({message: 'Manjkajo podatki za dodajanje novega kosa!'})
         //ce posljes kodo namesto message, lahko jezik nastavis na klientu
     }
 
     const dovoljeniTipi = ['slika', 'audio', 'video', 'pdf'];
     if (!dovoljeniTipi.includes(tip)) {
         return res.status(400).json({
-            message: `Neveljaven tip datoteke! Dovoljeni tipi: ${dovoljeniTipi.join(', ')}`
+            message: `Neveljaven tip kosa! Dovoljeni tipi: ${dovoljeniTipi.join(', ')}`
         });
     }
 
     const vsebina = req.file.buffer; //BLOB podatki
     try {
-        //ali že obstaja datoteka z istim imenom
-        const [rows] = await pool.execute('SELECT id FROM datoteka WHERE ime = ?', [ime]);
+        //ali že obstaja kos z istim imenom
+        const [rows] = await pool.execute('SELECT id FROM kos WHERE ime = ?', [ime]);
         if (rows.length > 0) {
-            return res.status(409).json({ message: 'Datoteka z istim imenom že obstaja!' });
+            return res.status(409).json({ message: 'Kos z istim imenom že obstaja!' });
         }
 
-        //preverim dejanski tip vnesene datoteke
+        //preverim dejanski tip vnesenega kosa
         const detectedType = await fileTypeFromBuffer(vsebina);
         if (!detectedType) {
-            return res.status(415).json({message: 'Nepodprt tip datoteke!'});
+            return res.status(415).json({message: 'Nepodprt tip kosa!'});
         }
         // Mapiranje MIME -> moj tip
         const mimeMap = {
@@ -200,22 +205,22 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
         }
         const realTip = mimeMap[detectedType.mime];
         if (tip !== realTip) {
-            return res.status(400).json({message: `Vsebina datoteke ne ustreza izbranemu tipu '${tip}'!`})
+            return res.status(400).json({message: `Vsebina kosa ne ustreza izbranemu tipu '${tip}'!`})
         }
 
-        const sql = 'INSERT INTO datoteka (ime, tip, vsebina) VALUES (?, ?, ?)';
+        const sql = 'INSERT INTO kos (ime, tip, vsebina, poskodovano) VALUES (?, ?, ?, false)';
         const [result] = await pool.execute(sql, [ime, tip, vsebina]);
 
         if (result.affectedRows === 1) {
-            const id = result.insertId; //id nove datoteke
-            const urlVira = utils.urlVira(req, `/api/datoteke/${id}`);
+            const id = result.insertId; //id novega kosa
+            const urlVira = utils.urlVira(req, `/api/kosi/${id}`);
             res.location(urlVira);
             return res.status(201).json({
-                message: 'Datoteka uspešno dodana.',
+                message: 'Kos uspešno dodan.',
                 url:urlVira
             });
         } 
-        throw new Error('Dodajanje datoteke ni bilo uspešno!');
+        throw new Error('Dodajanje kosa ni bilo uspešno!');
     } catch (err) {
         next(err);
     }
@@ -223,24 +228,24 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
 
 /**
  * @swagger
- * /api/datoteke/{id}:
+ * /api/kosi/{id}:
  *   delete:
- *     summary: Brisanje obstoječe datoteke z {id}
- *     tags: [Datoteke]
+ *     summary: Brisanje obstoječega kosa z {id}
+ *     tags: [Kosi]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID datoteke za brisanje
+ *         description: ID kosa za brisanje
  *     responses:
  *       204:
- *         description: Datoteka je bila uspešno izbrisana
+ *         description: Kos je bil uspešno izbrisan
  *       400:
- *         description: Neustrezen format za {id} datoteke
+ *         description: Neustrezen format za {id} kosa
  *       404:
- *         description: Datoteka z vpisanim {id} ne obstaja
+ *         description: Kos z vpisanim {id} ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
@@ -248,20 +253,20 @@ router.delete('/:id', async (req, res, next) => {
     const id = req.params.id;
 
     if (!/^\d+$/.test(id)) {
-        return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
+        return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
     }
 
     try {        
-        if (!(await utils.datotekaObstaja(id))) {
-            return res.status(404).json({ message: `Datoteka z ID-jem '${id}' ne obstaja!` });
+        if (!(await utils.kosObstaja(id))) {
+            return res.status(404).json({ message: `Kos z ID-jem '${id}' ne obstaja!` });
         }
         
-        const [result] = await pool.execute('DELETE FROM datoteka WHERE id = ?', [id]);
+        const [result] = await pool.execute('DELETE FROM kos WHERE id = ?', [id]);
         
         if (result.affectedRows === 1) {
             return res.status(204).send();
         } 
-        throw new Error('Brisanje datoteke ni bilo uspešno!');
+        throw new Error('Brisanje kosa ni bilo uspešno!');
     } catch (err) {
         next(err);
     }
@@ -269,17 +274,17 @@ router.delete('/:id', async (req, res, next) => {
 
 /**
  * @swagger
- * /api/datoteke/{id}:
+ * /api/kosi/{id}:
  *   put:
- *     summary: Posodabljanje imena datoteke z {id}
- *     tags: [Datoteke]
+ *     summary: Posodabljanje imena kosa z {id} (ime ali poskodovano)
+ *     tags: [Kosi]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID datoteke
+ *         description: ID kosa
  *     requestBody:
  *       required: true
  *       content:
@@ -289,41 +294,73 @@ router.delete('/:id', async (req, res, next) => {
  *             properties:
  *               ime:
  *                 type: string
- *                 description: Novo ime datoteke
+ *                 description: Novo ime kosa
+ *              poskodovano:
+ *                type: boolean
+ *                description: Zastavica, če je kos poškodovan (true -> je poškodovan)
  *     responses:
  *       204:
- *         description: Uspešno posodobljena datoteka
+ *         description: Uspešno posodobljen kos
  *       400:
- *         description: Manjkajo podatki za shranjevanje datoteke ali format za {id} datoteke ni ustrezen
+ *         description: Manjkajo podatki za shranjevanje kosa ali format za {id} kosa ni ustrezen
  *       404:
- *         description: Datoteka z vpisanim {id} ne obstaja
+ *         description: Kos z vpisanim {id} ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
 router.put('/:id', async (req, res, next) => {
     const id = req.params.id;
-    const {ime} = req.body; //samo 'ime' se lahko posodobi
+    const {ime, poskodovano} = req.body; //samo 'ime' in 'poskodovno' se lahko posodobi
 
     if (!/^\d+$/.test(id)) {
-        return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
+        return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
     }
     
     try{
-        if (!(await utils.datotekaObstaja(id))) {
-            return res.status(404).json({message: `Datoteka z ID-jem '${id}' ne obstaja!`});
+        if (!(await utils.kosObstaja(id))) {
+            return res.status(404).json({message: `Kos z ID-jem '${id}' ne obstaja!`});
         }
 
-        if(!ime){
-            return res.status(400).json({message: 'Manjka podatek *ime* za posodabljanje datoteke!'});
+        // Gradimo dinamični SQL glede na poslana polja
+        const updates = [];
+        const params = [];
+
+        if (ime !== undefined) {
+            updates.push('ime = ?');
+            params.push(ime);
         }
 
-        const sql = 'UPDATE datoteka SET ime=? WHERE id=?';
+        if (poskodovano !== undefined) {
+            // poskodovano naj bo vedno 0 ali 1
+            const val = poskodovano ? 1 : 0;
+            updates.push('poskodovano = ?');
+            params.push(val);
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({ message: 'Ni podatkov za posodobitev!' });
+        }
+
+        params.push(id); // id za WHERE
+
+        const sql = `UPDATE kos SET ${updates.join(', ')} WHERE id = ?`;
+        const [result] = await pool.execute(sql, params);
+
+        if (result.affectedRows === 1) {
+            return res.status(204).send();
+        }
+
+        /*if(!ime){
+            return res.status(400).json({message: 'Manjka podatek *ime* za posodabljanje kosa!'});
+        }
+
+        const sql = 'UPDATE kos SET ime=? WHERE id=?';
         const [result] = await pool.execute(sql, [ime, id]);
         
         if (result.affectedRows === 1) {
             return res.status(204).send(); 
-        } 
-        throw new Error('Spreminjanje datoteke ni bilo uspešno!');
+        } */
+        throw new Error('Spreminjanje kosa ni bilo uspešno!');
     } catch (err) {
         next(err);
     }
@@ -331,17 +368,17 @@ router.put('/:id', async (req, res, next) => {
 
 /**
  * @swagger
- * /api/datoteke/{datoteka_id}/labele/{labela_id}:
+ * /api/kosi/{kos_id}/labele/{labela_id}:
  *   post:
- *     summary: Dodajanje labele na datoteko
- *     tags: [Datoteke]
+ *     summary: Dodajanje labele na kos
+ *     tags: [Kosi]
  *     parameters:
  *       - in: path
- *         name: datoteka_id
+ *         name: kos_id
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID datoteke
+ *         description: ID kosa
  *       - in: path
  *         name: labela_id
  *         required: true
@@ -350,7 +387,7 @@ router.put('/:id', async (req, res, next) => {
  *         description: ID labele
  *     responses:
  *       201:
- *         description: Labela uspešno dodana na datoteko
+ *         description: Labela uspešno dodana na kos
  *         content:
  *           application/json:
  *             schema:
@@ -361,50 +398,50 @@ router.put('/:id', async (req, res, next) => {
  *                 url:
  *                   type: string
  *       400:
- *         description: Manjkajo podatki datoteka_id ali labela_id ali {id} ni pravega formata
+ *         description: Manjkajo podatki kos_id ali labela_id ali {id} ni pravega formata
  *       404:
- *         description: Datoteka z {datoteka_id} ali labela z {labela_id} ne obstaja
+ *         description: Kos z {kos_id} ali labela z {labela_id} ne obstaja
  *       409:
- *         description: Ta labela je že povezana z datoteko
+ *         description: Ta labela je že povezana s kosom
  *       500:
  *         description: Notranja napaka strežnika
  */
-// dodajanje labele :lab_id na datoteko :dat_id ----> datoteke/:id/labele/:labela_id
-router.post('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
-    const {datoteka_id, labela_id} = req.params;
+// dodajanje labele :lab_id na kos :kos_id ----> kosi/:id/labele/:labela_id
+router.post('/:kos_id/labele/:labela_id', async (req, res, next) => {
+    const {kos_id, labela_id} = req.params;
 
-    if (!datoteka_id || !labela_id) {
-        return res.status(400).json({ message: 'Manjkajo podatki: datoteka_id ali labela_id!' });
+    if (!kos_id || !labela_id) {
+        return res.status(400).json({ message: 'Manjkajo podatki: kos_id ali labela_id!' });
     }
-    if (!/^\d+$/.test(datoteka_id) || !/^\d+$/.test(labela_id)) {
+    if (!/^\d+$/.test(kos_id) || !/^\d+$/.test(labela_id)) {
         return res.status(400).json({ message: 'ID mora biti številka.' });
     }
 
     try {
-        if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({ message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!` });
+        if (!(await utils.kosObstaja(kos_id))) {
+            return res.status(404).json({ message: `Kos z ID-jem '${kos_id}' ne obstaja!` });
         }
 
         if (!(await utils.labelaObstaja(labela_id))) {
             return res.status(404).json({ message: `Labela z ID-jem '${labela_id}' ne obstaja!` });
         }
         
-        const sql = 'INSERT INTO datoteka_labela (datoteka_id, labela_id) VALUES (?, ?)';
-        const [result] = await pool.execute(sql, [datoteka_id, labela_id]);
+        const sql = 'INSERT INTO kos_labela (kos_id, labela_id) VALUES (?, ?)';
+        const [result] = await pool.execute(sql, [kos_id, labela_id]);
 
         if (result.affectedRows === 1) {
             const id = result.insertId; //id nove labele
-            const urlVira = utils.urlVira(req, `/api/datoteke/${datoteka_id}/labele/${labela_id}`);
+            const urlVira = utils.urlVira(req, `/api/kosi/${kos_id}/labele/${labela_id}`);
             res.location(urlVira);
             return res.status(201).json({
-                message: 'Labela uspešno dodana na datoteko.',
+                message: 'Labela uspešno dodana na kos.',
                 url:urlVira
             });
         }
-        throw new Error('Dodajanje labele na datoteko ni bilo uspešno!');
+        throw new Error('Dodajanje labele na kos ni bilo uspešno!');
     } catch (err) {
         if (err.code === 'ER_DUP_ENTRY') {
-            return res.status(409).json({ message: 'Ta labela je že povezana z datoteko!' });
+            return res.status(409).json({ message: 'Ta labela je že povezana s kosom!' });
         } else {
             next(err);
         }
@@ -413,17 +450,17 @@ router.post('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
 
 /**
  * @swagger
- * /api/datoteke/{datoteka_id}/labele/{labela_id}:
+ * /api/kosi/{kos_id}/labele/{labela_id}:
  *   delete:
- *     summary: Brisanje labele z datoteke
- *     tags: [Datoteke]
+ *     summary: Brisanje labele s kosa
+ *     tags: [Kosi]
  *     parameters:
  *       - in: path
- *         name: datoteka_id
+ *         name: kos_id
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID datoteke
+ *         description: ID kosa
  *       - in: path
  *         name: labela_id
  *         required: true
@@ -432,36 +469,36 @@ router.post('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
  *         description: ID labele
  *     responses:
  *       204:
- *         description: Labela je bila uspešno odstranjena z datoteke
+ *         description: Labela je bila uspešno odstranjena s kosa
  *       400:
- *         description: Neustrezen format za {id} datoteke ali {id} labele
+ *         description: Neustrezen format za {id} kosa ali {id} labele
  *       404:
- *         description: Povezava datoteka_labela ne obstaja
+ *         description: Povezava kos_labela ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
-// brisanje labele :lab_id z datoteke :dat_id --------> datoteke/:id/labele/:labela_id
-router.delete('/:datoteka_id/labele/:labela_id', async (req, res, next) => {
-    const {datoteka_id, labela_id} = req.params;
+// brisanje labele :lab_id z kosa :kos_id --------> kosi/:id/labele/:labela_id
+router.delete('/:kos_id/labele/:labela_id', async (req, res, next) => {
+    const {kos_id, labela_id} = req.params;
 
-    if (!/^\d+$/.test(datoteka_id) || !/^\d+$/.test(labela_id)) {
+    if (!/^\d+$/.test(kos_id) || !/^\d+$/.test(labela_id)) {
         return res.status(400).json({ message: 'ID mora biti številka!' });
     }
 
     try {
         // Preverimo, če povezava obstaja
-        const [povezava] = await pool.execute('SELECT datoteka_id, labela_id FROM datoteka_labela WHERE datoteka_id = ? AND labela_id = ?', [datoteka_id, labela_id]);
+        const [povezava] = await pool.execute('SELECT kos_id, labela_id FROM kos_labela WHERE kos_id = ? AND labela_id = ?', [kos_id, labela_id]);
         if (povezava.length === 0) {
-            return res.status(404).json({ message: 'Povezava datoteka_labela ne obstaja!' });
+            return res.status(404).json({ message: 'Povezava kos_labela ne obstaja!' });
         }
         
-        const sql = 'DELETE FROM datoteka_labela WHERE datoteka_id = ? AND labela_id = ?';
-        const [result] = await pool.execute(sql, [datoteka_id, labela_id]);
+        const sql = 'DELETE FROM kos_labela WHERE kos_id = ? AND labela_id = ?';
+        const [result] = await pool.execute(sql, [kos_id, labela_id]);
 
         if (result.affectedRows === 1) {
             return res.status(204).send();
         }
-        throw new Error('Brisanje labele iz datoteke ni bilo uspešno!');
+        throw new Error('Brisanje labele iz kosa ni bilo uspešno!');
     } catch (err) {
         next(err);
     }

@@ -101,9 +101,9 @@ router.get('/:id', async (req, res, next) => {
 
 /**
  * @swagger
- * /api/labele/{id}/datoteke:
+ * /api/labele/{id}/kosi:
  *   get:
- *     summary: Pridobivanje datotek z labelo z {id} - brez slike
+ *     summary: Pridobivanje kosov z labelo z {id} - brez slike
  *     tags: [Labele]
  *     parameters:
  *       - in: path
@@ -114,7 +114,7 @@ router.get('/:id', async (req, res, next) => {
  *         description: ID labele
  *     responses:
  *       200:
- *         description: Uspešno vrnjen seznam datotek z labelo z vpisanim {id}
+ *         description: Uspešno vrnjen seznam kosov z labelo z vpisanim {id}
  *         content:
  *           application/json:
  *             schema:
@@ -140,8 +140,8 @@ router.get('/:id', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-//pridobivanje vseh datotek z labelo :id
-router.get('/:id/datoteke', async (req, res, next) => {
+//pridobivanje vseh kosov z labelo :id
+router.get('/:id/kosi', async (req, res, next) => {
     try {
 		const id = req.params.id;
        
@@ -155,9 +155,9 @@ router.get('/:id/datoteke', async (req, res, next) => {
 
         const sql = `
             SELECT id, ime, tip 
-            FROM datoteka d
-            JOIN datoteka_labela dl ON d.id = dl.datoteka_id
-            WHERE dl.labela_id = ?
+            FROM kos k
+            JOIN kos_labela kl ON k.id = kl.kos_id
+            WHERE kl.labela_id = ?
         `;
         const [result] = await pool.execute(sql, [id]);
 
@@ -169,20 +169,20 @@ router.get('/:id/datoteke', async (req, res, next) => {
 
 /**
  * @swagger
- * /api/labele/datoteka/{datoteka_id}:
+ * /api/labele/kos/{kos_id}:
  *   get:
- *     summary: Pridobivanje vseh label datoteke z {datoteka_id}
+ *     summary: Pridobivanje vseh label kosa s {kos_id}
  *     tags: [Labele]
  *     parameters:
  *       - in: path
- *         name: datoteka_id
+ *         name: kos_id
  *         required: true
  *         schema:
  *           type: integer
- *         description: ID datoteke
+ *         description: ID kosa
  *     responses:
  *       200:
- *         description: Uspešno vrnjen seznam vseh label datoteke
+ *         description: Uspešno vrnjen seznam vseh label kosa
  *         content:
  *           application/json:
  *             schema:
@@ -190,30 +190,30 @@ router.get('/:id/datoteke', async (req, res, next) => {
  *               items:
  *                 $ref: '#/components/schemas/Labele'
  *       400:
- *         description: Neustrezen format za {id} datoteke
+ *         description: Neustrezen format za {id} kosa
  *       404:
- *         description: Datoteka z vpisanim {datoteka_id} ne obstaja
+ *         description: Kos z vpisanim {kos_id} ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
-//pridobivanje vseh label datoteke s posredovanim datoteka_id
-router.get('/datoteka/:datoteka_id', async (req, res, next) => {
+//pridobivanje vseh label kosa s posredovanim kos_id
+router.get('/kos/:kos_id', async (req, res, next) => {
     try {
-		const datoteka_id = req.params.datoteka_id;
-        if (!/^\d+$/.test(datoteka_id)) {
-            return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
+		const kos_id = req.params.kos_id;
+        if (!/^\d+$/.test(kos_id)) {
+            return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
         }
-        if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!`});
+        if (!(await utils.kosObstaja(kos_id))) {
+            return res.status(404).json({message: `Kos z ID-jem '${kos_id}' ne obstaja!`});
         }
                 
         const sql = `
             SELECT id, naziv, tip 
             FROM labela l
-            JOIN datoteka_labela dl ON l.id = dl.labela_id
-            WHERE dl.datoteka_id = ?
+            JOIN kos_labela kl ON l.id = kl.labela_id
+            WHERE kl.kos_id = ?
             `;
-        const [result] = await pool.execute(sql, [datoteka_id]);
+        const [result] = await pool.execute(sql, [kos_id]);
 
         res.status(200).json(result);
     } catch (err) {

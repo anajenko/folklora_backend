@@ -12,32 +12,29 @@ const utils = require('../utils/utils.js');
  *       properties:
  *         id:
  *           type: integer
- *         datoteka_id:
+ *         kos_id:
  *           type: integer
- *           description: ID datoteke, ki ji pripada komentar
+ *           description: ID kosa, ki mu pripada komentar
  *         besedilo:
  *           type: string
  *           description: Besedilo komentarja
- *         poskodovano:
- *           type: boolean
- *           description: Zastavica, če je datoteka poškodovana (1 -> je poškodovana)
  */
 
 /**
  * @swagger
- * /api/komentarji/datoteka/{datoteka_id}:
+ * /api/komentarji/kos/{kos_id}:
  *   get:
- *     summary: Pridobivanje vseh komentarjev datoteke z {datoteka_id}
+ *     summary: Pridobivanje vseh komentarjev kosa z {kos_id}
  *     tags: [Komentarji]
  *     parameters:
  *       - in: path
- *         name: datoteka_id
+ *         name: kos_id
  *         required: true
  *         schema:
  *           type: integer
  *     responses:
  *       200:
- *         description: Uspešno vrnjen seznam vseh komentarjev datoteke
+ *         description: Uspešno vrnjen seznam vseh komentarjev kosa
  *         content:
  *           application/json:
  *             schema:
@@ -45,27 +42,27 @@ const utils = require('../utils/utils.js');
  *               items:
  *                 $ref: '#/components/schemas/Komentarji'
  *       400:
- *         description: Neustrezen format za {id} datoteke
+ *         description: Neustrezen format za {id} kosa
  *       404:
- *         description: Datoteka z vpisanim {id} ne obstaja
+ *         description: Kos z vpisanim {id} ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
-//pridobivanje vseh komentarjev datoteke s posredovanim datoteka_id
-router.get('/datoteka/:datoteka_id', async (req, res, next) => {
+//pridobivanje vseh komentarjev kosa s posredovanim kos_id
+router.get('/kos/:kos_id', async (req, res, next) => {
     try {
-		const datoteka_id = req.params.datoteka_id;
+		const kos_id = req.params.kos_id;
         
-        if (!/^\d+$/.test(datoteka_id)) {
-            return res.status(400).json({ message: 'Neustrezen format za ID datoteke!' });
+        if (!/^\d+$/.test(kos_id)) {
+            return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
         }
 
-        if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!`});
+        if (!(await utils.kosObstaja(kos_id))) {
+            return res.status(404).json({message: `Kos z ID-jem '${kos_id}' ne obstaja!`});
         }
                 
-        const sql = 'SELECT id, datoteka_id, besedilo, poskodovano FROM komentar WHERE datoteka_id = ?';
-        const [result] = await pool.execute(sql, [datoteka_id]);
+        const sql = 'SELECT id, kos_id, besedilo FROM komentar WHERE kos_id = ?';
+        const [result] = await pool.execute(sql, [kos_id]);
 
         res.status(200).json(result);
     } catch (err) {
@@ -110,7 +107,7 @@ router.get('/:id', async (req, res, next) => {
             return res.status(404).json({message: `Komentar z ID-jem '${id}' ne obstaja!`});
         }
                 
-        const sql = 'SELECT id, datoteka_id, besedilo, poskodovano FROM komentar WHERE id = ?';
+        const sql = 'SELECT id, kos_id, besedilo FROM komentar WHERE id = ?';
         const [result] = await pool.execute(sql, [id]);
 
         res.status(200).json(result);
@@ -123,7 +120,7 @@ router.get('/:id', async (req, res, next) => {
  * @swagger
  * /api/komentarji:
  *   post:
- *     summary: Dodajanje komentarja na datoteko
+ *     summary: Dodajanje komentarja na kos
  *     tags: [Komentarji]
  *     requestBody:
  *       required: true
@@ -132,15 +129,13 @@ router.get('/:id', async (req, res, next) => {
  *           schema:
  *             type: object
  *             properties:
- *               datoteka_id:
+ *               kos_id:
  *                 type: integer
  *               besedilo:
  *                 type: string
- *               poskodovano:
- *                 type: boolean
  *     responses:
  *       201:
- *         description: Komentar uspešno dodan na datoteko
+ *         description: Komentar uspešno dodan na kos
  *         content:
  *           application/json:
  *             schema:
@@ -153,23 +148,23 @@ router.get('/:id', async (req, res, next) => {
  *       400:
  *         description: Manjkajo podatki za dodajanje komentarja
  *       404:
- *         description: Datoteka z {datoteka_id} ne obstaja
+ *         description: Kos z {kos_id} ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
 router.post('/', async (req, res, next) => {
-    const {datoteka_id, besedilo, poskodovano} = req.body;
+    const {kos_id, besedilo} = req.body;
 
-    if (!datoteka_id || (!besedilo && (poskodovano == 0 || poskodovano === undefined))) { 
-        return res.status(400).json({ message: 'Manjkajo podatki: datoteka_id, besedilo ali poskodovano!' });
+    if (!kos_id || !besedilo) { 
+        return res.status(400).json({ message: 'Manjka podatek kos_id ali besedilo!' });
     }
     try {
-        if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({ message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!` });
+        if (!(await utils.kosObstaja(kos_id))) {
+            return res.status(404).json({ message: `Kos z ID-jem '${kos_id}' ne obstaja!` });
         }
 
-        const sql = 'INSERT INTO komentar (datoteka_id, besedilo, poskodovano) VALUES (?, ?, ?)';
-        const [result] = await pool.execute(sql, [datoteka_id, besedilo, poskodovano]);
+        const sql = 'INSERT INTO komentar (kos_id, besedilo) VALUES (?, ?, ?)';
+        const [result] = await pool.execute(sql, [kos_id, besedilo]);
 
         if (result.affectedRows === 1) {
             const id = result.insertId; //id novega komentarja
@@ -250,41 +245,39 @@ router.delete('/:id', async (req, res, next) => {
  *           schema:
  *             type: object
  *             properties:
- *               datoteka_id:
+ *               kos_id:
  *                 type: integer
  *               besedilo:
  *                 type: string
- *               poskodovano:
- *                 type: boolean
  *     responses:
  *       204:
  *         description: Uspešno posodobljen komentar
  *       400:
  *         description: Manjkajo podatki za shranjevanje komentarja ali format za {id} ni ustrezen
  *       404:
- *         description: Datoteka z vpisanim {datoteka_id} ne obstaja
+ *         description: Kos z vpisanim {kos_id} ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
 router.put('/:id', async (req, res, next) => {
     const id = req.params.id;
-    const {datoteka_id, besedilo, poskodovano} = req.body; //samo 'besedilo' ali 'poskodovano' se lahko posodobi
+    const {kos_id, besedilo} = req.body; //samo 'besedilo' se lahko posodobi
 
-    if (!/^\d+$/.test(datoteka_id) || !/^\d+$/.test(id)) {
+    if (!/^\d+$/.test(kos_id) || !/^\d+$/.test(id)) {
         return res.status(400).json({ message: 'ID mora biti številka!' });
     }
 
     try{
-        if (!(await utils.datotekaObstaja(datoteka_id))) {
-            return res.status(404).json({message: `Datoteka z ID-jem '${datoteka_id}' ne obstaja!`});
+        if (!(await utils.kosObstaja(kos_id))) {
+            return res.status(404).json({message: `Kos z ID-jem '${kos_id}' ne obstaja!`});
         }
 
-        if(!datoteka_id || (!besedilo && (poskodovano == 0 || poskodovano === undefined))){
+        if(!kos_id || !besedilo){
             return res.status(400).json({message: 'Manjkajo podatki za posodabljanje komentarja!'});
         }
 
-        const sql = 'UPDATE komentar SET besedilo=?, poskodovano=? WHERE id=?';
-        const [result] = await pool.execute(sql, [besedilo, poskodovano, id]);
+        const sql = 'UPDATE komentar SET besedilo=? WHERE id=?';
+        const [result] = await pool.execute(sql, [besedilo, id]);
         
         if (result.affectedRows === 1) {
             return res.status(204).send(); //204 je No Content - tut če pripnemo message, se ne prikaže

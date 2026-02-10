@@ -1,8 +1,8 @@
 const pool = require('./db.js');
 
-async function datotekaObstaja(id) {
+async function kosObstaja(id) {
     if (!id) return false;
-    const [rows] = await pool.execute('SELECT id FROM datoteka WHERE id = ?', [id]);
+    const [rows] = await pool.execute('SELECT id FROM kos WHERE id = ?', [id]);
     return rows.length > 0;
 }
 
@@ -55,7 +55,7 @@ function urlVira(reqOrPath, optionalPath) {
 }
 
 module.exports = {
-    datotekaObstaja,
+    kosObstaja,
     komentarObstaja,
     labelaObstaja,
     urlVira
