@@ -19,7 +19,7 @@ const { fileTypeFromBuffer } = require('file-type');
  *           type: string
  *         tip:
  *           type: string
- *           enum: 
+ *           enum:
  *             - slika
  *             - audio
  *             - video
@@ -43,7 +43,7 @@ const { fileTypeFromBuffer } = require('file-type');
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Kos'
+ *                 $ref: '#/components/schemas/Kosi'
  *       500:
  *         description: Notranja napaka strežnika
  */
@@ -142,7 +142,7 @@ router.get('/:id', async (req, res, next) => {
  *               ime:
  *                 type: string
  *               tip:
- *                 $ref: '#/components/schemas/Kos/properties/tip'
+ *                 $ref: '#/components/schemas/Kosi/properties/tip'
  *               slika:
  *                 type: string
  *                 format: binary
@@ -295,9 +295,9 @@ router.delete('/:id', async (req, res, next) => {
  *               ime:
  *                 type: string
  *                 description: Novo ime kosa
- *              poskodovano:
- *                type: boolean
- *                description: Zastavica, če je kos poškodovan (true -> je poškodovan)
+ *               poskodovano:
+ *                 type: boolean
+ *                 description: Zastavica, če je kos poškodovan (true -> je poškodovan)
  *     responses:
  *       204:
  *         description: Uspešno posodobljen kos

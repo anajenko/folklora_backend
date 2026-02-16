@@ -163,8 +163,10 @@ router.post('/', async (req, res, next) => {
             return res.status(404).json({ message: `Kos z ID-jem '${kos_id}' ne obstaja!` });
         }
 
-        const sql = 'INSERT INTO komentar (kos_id, besedilo) VALUES (?, ?, ?)';
-        const [result] = await pool.execute(sql, [kos_id, besedilo]);
+        const uporabnik_id = 1; // 🔥 začasno hardcoded
+
+        const sql = 'INSERT INTO komentar (kos_id, uporabnik_id, besedilo) VALUES (?, ?, ?)';
+        const [result] = await pool.execute(sql, [kos_id, uporabnik_id, besedilo]);
 
         if (result.affectedRows === 1) {
             const id = result.insertId; //id novega komentarja
