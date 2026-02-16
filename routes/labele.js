@@ -4,6 +4,7 @@ const pool = require('../utils/db.js'); // uvozimo Connection Pool
 const utils = require('../utils/utils.js'); // uvozimo pomožne funckije
 const multer = require('multer');
 const upload = multer(); 
+const authMiddleware = require('../utils/auth');
 
 /**
  * @swagger
@@ -44,7 +45,7 @@ const upload = multer();
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.get('/', async (req, res, next) => {
+router.get('/', authMiddleware, async (req, res, next) => {
     try {
         const [rows] = await pool.execute('SELECT id, naziv, tip FROM labela');
         res.status(200).json(rows);		// Pošljemo podatke uporabniku kot JSON
@@ -80,7 +81,7 @@ router.get('/', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authMiddleware, async (req, res, next) => {
     try {
 		const id = req.params.id;
         if (!/^\d+$/.test(id)) {
@@ -141,7 +142,7 @@ router.get('/:id', async (req, res, next) => {
  *         description: Notranja napaka strežnika
  */
 //pridobivanje vseh kosov z labelo :id
-router.get('/:id/kosi', async (req, res, next) => {
+router.get('/:id/kosi', authMiddleware, async (req, res, next) => {
     try {
 		const id = req.params.id;
        
@@ -197,7 +198,7 @@ router.get('/:id/kosi', async (req, res, next) => {
  *         description: Notranja napaka strežnika
  */
 //pridobivanje vseh label kosa s posredovanim kos_id
-router.get('/kos/:kos_id', async (req, res, next) => {
+router.get('/kos/:kos_id', authMiddleware, async (req, res, next) => {
     try {
 		const kos_id = req.params.kos_id;
         if (!/^\d+$/.test(kos_id)) {
@@ -257,7 +258,7 @@ router.get('/kos/:kos_id', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.post('/', async (req, res, next) => { 
+router.post('/', authMiddleware, async (req, res, next) => { 
     const {naziv, tip} = req.body;
 
     if (!naziv || !tip) {
@@ -318,7 +319,7 @@ router.post('/', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authMiddleware, async (req, res, next) => {
     const id = req.params.id;
     if (!/^\d+$/.test(id)) {
             return res.status(400).json({ message: 'Neustrezen format za ID labela!' });

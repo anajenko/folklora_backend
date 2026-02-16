@@ -18,6 +18,12 @@ async function labelaObstaja(id) {
     return rows.length > 0;
 }
 
+async function uporabnikObstaja(uporabnisko_ime) {
+    if (!uporabnisko_ime) return false;
+    const [rows] = await pool.execute('SELECT id FROM uporabnik WHERE uporabnisko_ime = ?', [uporabnisko_ime]);
+    return rows.length > 0;
+}
+
 /**
  * urlVira(reqOrPath, optionalPath)
  * - če je prvi argument objekt req, sestavi URL iz req
@@ -58,5 +64,6 @@ module.exports = {
     kosObstaja,
     komentarObstaja,
     labelaObstaja,
+    uporabnikObstaja,
     urlVira
 };

@@ -1,3 +1,5 @@
+require('dotenv').config();   // naloži spremenljivke iz .env datoteke v process.env
+
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
@@ -10,6 +12,7 @@ const swaggerSpec = require('./swagger');
 const dataRouter = require('./routes/kosi');
 const commentsRouter = require('./routes/komentarji');
 const labelsRouter = require('./routes/labele');
+const usersRouter = require('./routes/uporabniki');
 
 const app = express();
 
@@ -33,5 +36,6 @@ app.use((err, req, res, next) => {
 app.use('/api/kosi', dataRouter);
 app.use('/api/komentarji', commentsRouter);
 app.use('/api/labele', labelsRouter);
+app.use('/api/uporabniki', usersRouter);
 
 module.exports = app;

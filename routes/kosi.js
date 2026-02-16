@@ -5,6 +5,7 @@ const utils = require('../utils/utils.js');
 const multer = require('multer'); // nalaganje slik
 const upload = multer({storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 }}); // pomnilnik max 10MB
 const { fileTypeFromBuffer } = require('file-type');
+const authMiddleware = require('../utils/auth');
 
 /**
  * @swagger
@@ -47,7 +48,7 @@ const { fileTypeFromBuffer } = require('file-type');
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.get('/', async (req, res, next) => { // = '/kosi'
+router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
     try {
         // Uporabimo pool.execute() za varno izvedbo poizvedbe
         const [rows] = await pool.execute('SELECT id, ime, tip, poskodovano FROM kos');
@@ -168,7 +169,7 @@ router.get('/:id', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.post('/', upload.single('slika'), async (req, res, next) => {
+router.post('/', authMiddleware, upload.single('slika'), async (req, res, next) => {
     const {ime, tip} = req.body;
 
     if(!ime || !tip || !req.file){
@@ -249,7 +250,7 @@ router.post('/', upload.single('slika'), async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authMiddleware, async (req, res, next) => {
     const id = req.params.id;
 
     if (!/^\d+$/.test(id)) {
@@ -308,7 +309,7 @@ router.delete('/:id', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', authMiddleware, async (req, res, next) => {
     const id = req.params.id;
     const {ime, poskodovano} = req.body; //samo 'ime' in 'poskodovno' se lahko posodobi
 
@@ -407,7 +408,7 @@ router.put('/:id', async (req, res, next) => {
  *         description: Notranja napaka strežnika
  */
 // dodajanje labele :lab_id na kos :kos_id ----> kosi/:id/labele/:labela_id
-router.post('/:kos_id/labele/:labela_id', async (req, res, next) => {
+router.post('/:kos_id/labele/:labela_id', authMiddleware, async (req, res, next) => {
     const {kos_id, labela_id} = req.params;
 
     if (!kos_id || !labela_id) {
@@ -478,7 +479,7 @@ router.post('/:kos_id/labele/:labela_id', async (req, res, next) => {
  *         description: Notranja napaka strežnika
  */
 // brisanje labele :lab_id z kosa :kos_id --------> kosi/:id/labele/:labela_id
-router.delete('/:kos_id/labele/:labela_id', async (req, res, next) => {
+router.delete('/:kos_id/labele/:labela_id', authMiddleware, async (req, res, next) => {
     const {kos_id, labela_id} = req.params;
 
     if (!/^\d+$/.test(kos_id) || !/^\d+$/.test(labela_id)) {

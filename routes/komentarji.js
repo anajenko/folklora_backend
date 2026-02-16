@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../utils/db.js'); // uvozimo Connection Pool
 const utils = require('../utils/utils.js');
+const authMiddleware = require('../utils/auth');
 
 /**
  * @swagger
@@ -49,7 +50,7 @@ const utils = require('../utils/utils.js');
  *         description: Notranja napaka strežnika
  */
 //pridobivanje vseh komentarjev kosa s posredovanim kos_id
-router.get('/kos/:kos_id', async (req, res, next) => {
+router.get('/kos/:kos_id', authMiddleware, async (req, res, next) => {
     try {
 		const kos_id = req.params.kos_id;
         
@@ -97,7 +98,7 @@ router.get('/kos/:kos_id', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authMiddleware, async (req, res, next) => {
     try {
 		const id = req.params.id;
         if (!/^\d+$/.test(id)) {
@@ -152,7 +153,7 @@ router.get('/:id', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.post('/', async (req, res, next) => {
+router.post('/', authMiddleware, async (req, res, next) => {
     const {kos_id, besedilo} = req.body;
 
     if (!kos_id || !besedilo) { 
@@ -206,7 +207,7 @@ router.post('/', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authMiddleware, async (req, res, next) => {
     const id = req.params.id;
     if (!/^\d+$/.test(id)) {
         return res.status(400).json({ message: 'Neustrezen format za ID komentarja!' });
@@ -261,7 +262,7 @@ router.delete('/:id', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', authMiddleware, async (req, res, next) => {
     const id = req.params.id;
     const {kos_id, besedilo} = req.body; //samo 'besedilo' se lahko posodobi
 
