@@ -132,7 +132,7 @@ router.post('/prijava', async (req, res, next) => {
             { expiresIn: '1h' }
         );
         
-        res.status(200).json({message: 'Prijava uspešna!', token: token});
+        res.status(200).json({message: 'Prijava uspešna!', token: token, uporabnisko_ime: uporabnik.uporabnisko_ime});
     } catch (err) {
         next(err);
     }

@@ -197,6 +197,12 @@ router.post('/', authMiddleware, upload.single('slika'), async (req, res, next) 
         if (!detectedType) {
             return res.status(415).json({message: 'Nepodprt tip kosa!'});
         }
+        if (detectedType.mime === 'image/png') {
+            return res.status(415).json({
+                message: 'Aplikacija trenutno ne podpira formata PNG. Naloži JPEG (.jpg ali .jpeg).'
+            });
+        }
+
         // Mapiranje MIME -> moj tip
         const mimeMap = {
             'image/jpeg': 'slika',
