@@ -159,12 +159,15 @@ router.post('/', authMiddleware, async (req, res, next) => {
     if (!kos_id || !besedilo) { 
         return res.status(400).json({ message: 'Manjka podatek kos_id ali besedilo!' });
     }
+     if (besedilo.trim() === '') { 
+        return res.status(400).json({ message: 'Komentar ne sme biti prazen!' });
+    }
     try {
         if (!(await utils.kosObstaja(kos_id))) {
             return res.status(404).json({ message: `Kos z ID-jem '${kos_id}' ne obstaja!` });
         }
 
-        const uporabnik_id = 1; // 🔥 začasno hardcoded
+        const uporabnik_id = req.user.id; 
 
         const sql = 'INSERT INTO komentar (kos_id, uporabnik_id, besedilo) VALUES (?, ?, ?)';
         const [result] = await pool.execute(sql, [kos_id, uporabnik_id, besedilo]);

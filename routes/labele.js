@@ -316,6 +316,8 @@ router.post('/', authMiddleware, async (req, res, next) => {
  *         description: Neustrezen format za {id} labele
  *       404:
  *         description: Labela z vpisanim {id} ne obstaja
+ *       409:
+ *        description: Labela je povezana s kosom in je zato ni mogoče izbrisati
  *       500:
  *         description: Notranja napaka strežnika
  */
@@ -336,6 +338,10 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
         } 
         throw new Error('Brisanje labele ni bilo uspešno!');
     } catch (err) {
+        // Če gre za MySQL foreign key constraint
+        if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+            return res.status(409).json({ message: 'Labela je povezana s kosom in je zato ni mogoče izbrisati!' });
+        }
         next(err);
     }
 });

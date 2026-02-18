@@ -28,6 +28,7 @@ const jwt = require('jsonwebtoken');
  * @swagger
  * /api/uporabniki:
  *   post:
+ *     security: []
  *     summary: Dodajanje novega uporabnika => registracija
  *     description: Ustvari novega uporabnika z zgoščenim (hash) geslom.
  *     tags: [Uporabniki]
@@ -101,6 +102,50 @@ router.post('/', async (req, res, next) => {
     }
 }); 
 
+/**
+ * @swagger
+ * /api/uporabniki/prijava:
+ *   post:
+ *     security: []
+ *     summary: Prijava uporabnika
+ *     description: Preveri uporabniško ime in geslo ter vrne JWT žeton.
+ *     tags: [Uporabniki]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - uporabnisko_ime
+ *               - geslo
+ *             properties:
+ *               uporabnisko_ime:
+ *                 type: string
+ *               geslo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Prijava uspešna
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 token:
+ *                   type: string
+ *                   description: JWT žeton za avtentikacijo
+ *                 uporabnisko_ime:
+ *                   type: string
+ *       400:
+ *         description: Manjkajo podatki za prijavo
+ *       401:
+ *         description: Napačno uporabniško ime ali geslo
+ *       500:
+ *         description: Napaka strežnika
+ */
 router.post('/prijava', async (req, res, next) => {
     const {uporabnisko_ime, geslo} = req.body;
 

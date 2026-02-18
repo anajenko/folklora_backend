@@ -62,6 +62,7 @@ router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
  * @swagger
  * /api/kosi/{id}:
  *   get:
+ *     security: []
  *     summary: Pridobivanje atriubuta vsebina kosa z {id} - samo slika
  *     tags: [Kosi]
  *     parameters:
@@ -333,6 +334,9 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
         const params = [];
 
         if (ime !== undefined) {
+            if (ime.trim() === "") {
+                return res.status(400).json({ message: 'Ime kosa ne sme biti prazno!' });
+            }
             updates.push('ime = ?');
             params.push(ime);
         }
