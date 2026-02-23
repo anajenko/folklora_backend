@@ -36,6 +36,13 @@ const authMiddleware = require('../utils/auth');
  *   get:
  *     summary: Pridobivanje vseh kosov (id, ime, tip) brez slike
  *     tags: [Kosi]
+ *     parameters:
+ *       - in: query
+ *         name: labels
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Seznam ID-jev label, ločenih z vejico, npr. "1,3,5". Vrne kose, ki imajo vse izbrane label-e.
  *     responses:
  *       200:
  *         description: Uspešno vrnjen seznam vseh kosov
@@ -45,13 +52,47 @@ const authMiddleware = require('../utils/auth');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Kosi'
+ *       400:
+ *         description: Neveljaven parameter labels TODO
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Neveljaven parameter labels!
  *       500:
  *         description: Notranja napaka strežnika
  */
 router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
     try {
+        const labelsQuery = req.query.labels; // pričakujemo npr. "1,3,5"
+        let sql = 'SELECT id, ime, tip, poskodovano FROM kos';
+        let params = [];
+
+        if (labelsQuery) {
+            // razdelimo ID-je in jih preverimo
+            const labelIds = labelsQuery.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+            if (labelIds.length === 0) {
+                return res.status(400).json({ message: 'Neveljaven parameter labels!' });
+            }
+
+            // INNER JOIN z kos_labela za filtriranje kosov, ki imajo vse izbrane label-e
+            // Uporabimo GROUP BY + HAVING COUNT za many-to-many relacijo
+            sql = `
+                SELECT k.id, k.ime, k.tip, k.poskodovano
+                FROM kos k
+                INNER JOIN kos_labela kl ON k.id = kl.kos_id
+                WHERE kl.labela_id IN (${labelIds.map(() => '?').join(',')})
+                GROUP BY k.id
+                HAVING COUNT(DISTINCT kl.labela_id) = ?
+            `;
+            params = [...labelIds, labelIds.length];
+        }
+
         // Uporabimo pool.execute() za varno izvedbo poizvedbe
-        const [rows] = await pool.execute('SELECT id, ime, tip, poskodovano FROM kos');
+        const [rows] = await pool.execute(sql, params);
         res.status(200).json(rows);		// Pošljemo podatke uporabniku kot JSON
     } catch (err) {
         next(err);
