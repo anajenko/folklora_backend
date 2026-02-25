@@ -16,6 +16,10 @@ const authMiddleware = require('../utils/auth');
  *         kos_id:
  *           type: integer
  *           description: ID kosa, ki mu pripada komentar
+ *         uporabnik_id:
+ *           type: integer
+ *         uporabnisko_ime:
+ *           type: string
  *         besedilo:
  *           type: string
  *           description: Besedilo komentarja
@@ -62,7 +66,17 @@ router.get('/kos/:kos_id', authMiddleware, async (req, res, next) => {
             return res.status(404).json({message: `Kos z ID-jem '${kos_id}' ne obstaja!`});
         }
                 
-        const sql = 'SELECT id, kos_id, besedilo FROM komentar WHERE kos_id = ?';
+        const sql = `
+            SELECT 
+                k.id,
+                k.kos_id,
+                k.besedilo,
+                k.uporabnik_id,
+                u.uporabnisko_ime
+            FROM komentar k
+            JOIN uporabnik u ON k.uporabnik_id = u.id
+            WHERE k.kos_id = ?
+        `;
         const [result] = await pool.execute(sql, [kos_id]);
 
         res.status(200).json(result);
@@ -90,7 +104,7 @@ router.get('/kos/:kos_id', authMiddleware, async (req, res, next) => {
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Komentar'
+ *               $ref: '#/components/schemas/Komentarji'
  *       400:
  *         description: Neustrezen format za {id} komentarja
  *       404:
@@ -108,7 +122,17 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
             return res.status(404).json({message: `Komentar z ID-jem '${id}' ne obstaja!`});
         }
                 
-        const sql = 'SELECT id, kos_id, besedilo FROM komentar WHERE id = ?';
+        const sql = `
+            SELECT 
+                k.id,
+                k.kos_id,
+                k.besedilo,
+                k.uporabnik_id,
+                u.uporabnisko_ime
+            FROM komentar k
+            JOIN uporabnik u ON k.uporabnik_id = u.id
+            WHERE k.id = ?
+        `;
         const [result] = await pool.execute(sql, [id]);
 
         res.status(200).json(result);
