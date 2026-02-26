@@ -1,5 +1,6 @@
 const express = require('express');
-const router = express.Router();
+const router = express.Router({ mergeParams: true }); 
+// IMPORTANT: mergeParams allows access to kosId
 const pool = require('../utils/db.js'); // uvozimo Connection Pool
 const utils = require('../utils/utils.js');
 const authMiddleware = require('../utils/auth');
@@ -27,16 +28,17 @@ const authMiddleware = require('../utils/auth');
 
 /**
  * @swagger
- * /api/komentarji/kos/{kos_id}:
+ * /api/kosi/{kos_id}/komentarji:
  *   get:
  *     summary: Pridobivanje vseh komentarjev kosa z {kos_id}
- *     tags: [Komentarji]
+ *     tags: [Kosi]
  *     parameters:
  *       - in: path
  *         name: kos_id
  *         required: true
  *         schema:
  *           type: integer
+ *         description: ID kosa, ki mu pripadajo komentarji
  *     responses:
  *       200:
  *         description: Uspešno vrnjen seznam vseh komentarjev kosa
@@ -54,9 +56,9 @@ const authMiddleware = require('../utils/auth');
  *         description: Notranja napaka strežnika
  */
 //pridobivanje vseh komentarjev kosa s posredovanim kos_id
-router.get('/kos/:kos_id', authMiddleware, async (req, res, next) => {
+router.get('/', authMiddleware, async (req, res, next) => {
     try {
-		const kos_id = req.params.kos_id;
+		const {kos_id} = req.params;
         
         if (!/^\d+$/.test(kos_id)) {
             return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
@@ -77,9 +79,10 @@ router.get('/kos/:kos_id', authMiddleware, async (req, res, next) => {
             JOIN uporabnik u ON k.uporabnik_id = u.id
             WHERE k.kos_id = ?
         `;
-        const [result] = await pool.execute(sql, [kos_id]);
 
+        const [result] = await pool.execute(sql, [kos_id]);
         res.status(200).json(result);
+
     } catch (err) {
         next(err);
     }
@@ -87,11 +90,17 @@ router.get('/kos/:kos_id', authMiddleware, async (req, res, next) => {
 
 /**
  * @swagger
- * /api/komentarji/{id}:
+ * /api/kosi/{kos_id}/komentarji/{id}:
  *   get:
  *     summary: Pridobivanje komentarja z vpisanim {id}
- *     tags: [Komentarji]
+ *     tags: [Kosi]
  *     parameters:
+ *       - in: path
+ *         name: kos_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID kosa, ki mu pripada komentar
  *       - in: path
  *         name: id
  *         required: true
@@ -106,22 +115,23 @@ router.get('/kos/:kos_id', authMiddleware, async (req, res, next) => {
  *             schema:
  *               $ref: '#/components/schemas/Komentarji'
  *       400:
- *         description: Neustrezen format za {id} komentarja
+ *         description: Neustrezen format za ID kosa ali komentarja
  *       404:
- *         description: Komentar z vpisanim {id} ne obstaja
+ *         description: Komentar z vpisanim {id} ne obstaja na kosu z vpisanim {kos_id}
  *       500:
  *         description: Notranja napaka strežnika
  */
 router.get('/:id', authMiddleware, async (req, res, next) => {
-    try {
-		const id = req.params.id;
-        if (!/^\d+$/.test(id)) {
-            return res.status(400).json({ message: 'Neustrezen format za ID komentarja!' });
-        }
-        if (!(await utils.komentarObstaja(id))) {
-            return res.status(404).json({message: `Komentar z ID-jem '${id}' ne obstaja!`});
-        }
-                
+    const {kos_id, id} = req.params;
+
+    if (!/^\d+$/.test(kos_id)) {
+        return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
+    }
+    if (!/^\d+$/.test(id)) {
+        return res.status(400).json({ message: 'Neustrezen format za ID komentarja!' });
+    }
+    
+    try {      
         const sql = `
             SELECT 
                 k.id,
@@ -131,11 +141,16 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
                 u.uporabnisko_ime
             FROM komentar k
             JOIN uporabnik u ON k.uporabnik_id = u.id
-            WHERE k.id = ?
+            WHERE k.id = ? and k.kos_id = ?
         `;
-        const [result] = await pool.execute(sql, [id]);
 
-        res.status(200).json(result);
+        const [result] = await pool.execute(sql, [id, kos_id]);
+        if (result.length === 0) {
+            return res.status(404).json({ message: `Kos z ID-jem '${kos_id}' nima komentarja z ID-jem '${id}'!` });
+        }
+
+        res.status(200).json(result[0]);
+
     } catch (err) {
         next(err);
     }
@@ -143,19 +158,26 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
 
 /**
  * @swagger
- * /api/komentarji:
+ * /api/kosi/{kos_id}/komentarji:
  *   post:
  *     summary: Dodajanje komentarja na kos
- *     tags: [Komentarji]
+ *     tags: [Kosi]
+ *     parameters:
+ *       - in: path
+ *         name: kos_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID kosa, na katerega želimo dodati komentar
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - besedilo
  *             properties:
- *               kos_id:
- *                 type: integer
  *               besedilo:
  *                 type: string
  *     responses:
@@ -171,19 +193,24 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
  *                 url:
  *                   type: string
  *       400:
- *         description: Manjkajo podatki za dodajanje komentarja
+ *         description: Manjkajo podatki za dodajanje komentarja ali neustrezen format za ID kosa
  *       404:
  *         description: Kos z {kos_id} ne obstaja
  *       500:
  *         description: Notranja napaka strežnika
  */
 router.post('/', authMiddleware, async (req, res, next) => {
-    const {kos_id, besedilo} = req.body;
+    const {kos_id} = req.params;
+    const {besedilo} = req.body;
 
-    if (!kos_id || !besedilo) { 
-        return res.status(400).json({ message: 'Manjka podatek kos_id ali besedilo!' });
+    if (!/^\d+$/.test(kos_id)) {
+        return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
     }
-     if (besedilo.trim() === '') { 
+    
+    if (!besedilo) { 
+        return res.status(400).json({ message: 'Manjka podatek besedilo!' });
+    }
+    if (besedilo.trim() === '') { 
         return res.status(400).json({ message: 'Komentar ne sme biti prazen!' });
     }
     try {
@@ -198,7 +225,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
 
         if (result.affectedRows === 1) {
             const id = result.insertId; //id novega komentarja
-            const urlVira = utils.urlVira(req, `/api/komentarji/${id}`);
+            const urlVira = utils.urlVira(req, `/api/kosi/${kos_id}/komentarji/${id}`);
             res.location(urlVira);
             return res.status(201).json({
                 message: 'Komentar uspešno dodan.',
@@ -206,6 +233,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
             });
         } 
         throw new Error('Dodajanje komentarja ni bilo uspešno!');
+
     } catch (err) {
         next(err);
     }
@@ -213,11 +241,17 @@ router.post('/', authMiddleware, async (req, res, next) => {
 
 /**
  * @swagger
- * /api/komentarji/{id}:
+ * /api/kosi/{kos_id}/komentarji/{id}:
  *   delete:
  *     summary: Brisanje obstoječega komentarja z {id}
- *     tags: [Komentarji]
+ *     tags: [Kosi]
  *     parameters:
+ *       - in: path
+ *         name: kos_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID kosa, ki mu pripada komentar
  *       - in: path
  *         name: id
  *         required: true
@@ -228,28 +262,31 @@ router.post('/', authMiddleware, async (req, res, next) => {
  *       204:
  *         description: Komentar je bil uspešno izbrisan
  *       400:
- *         description: Neustrezen format za {id} komentarja
+ *         description: Neustrezen format za ID komentarja ali kosa
  *       404:
- *         description: Komentar z vpisanim {id} ne obstaja
+ *         description: Komentar z vpisanim {id} ne obstaja na kosu z vpisanim {kos_id}
  *       500:
  *         description: Notranja napaka strežnika
  */
 router.delete('/:id', authMiddleware, async (req, res, next) => {
-    const id = req.params.id;
+    const {kos_id, id} = req.params;
+    
+    if (!/^\d+$/.test(kos_id)) {
+        return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
+    }
     if (!/^\d+$/.test(id)) {
         return res.status(400).json({ message: 'Neustrezen format za ID komentarja!' });
     }
 
     try {        
-        if (!(await utils.komentarObstaja(id))) {
-            return res.status(404).json({ message: `Komentar z ID-jem '${id}' ne obstaja!` });
-        }
-        const [result] = await pool.execute('DELETE FROM komentar WHERE id = ?', [id]);
+        const [result] = await pool.execute('DELETE FROM komentar WHERE id = ? AND kos_id = ?', [id, kos_id]);
         
         if (result.affectedRows === 1) {
             return res.status(204).send();
         } 
-        throw new Error('Brisanje komentarja ni bilo uspešno!');
+
+        return res.status(404).json({ message: `Komentar z ID-jem '${id}' ne obstaja na kosu z ID-jem '${kos_id}'!` });
+
     } catch (err) {
         next(err);
     }
@@ -257,11 +294,17 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
 
 /**
  * @swagger
- * /api/komentarji/{id}:
+ * /api/kosi/{kos_id}/komentarji/{id}:
  *   put:
  *     summary: Posodabljanje vsebine komentarja z vpisanim {id}
- *     tags: [Komentarji]
+ *     tags: [Kosi]
  *     parameters:
+ *       - in: path
+ *         name: kos_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID kosa, ki mu pripada komentar
  *       - in: path
  *         name: id
  *         required: true
@@ -274,27 +317,34 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - besedilo
  *             properties:
- *               kos_id:
- *                 type: integer
  *               besedilo:
  *                 type: string
  *     responses:
  *       204:
  *         description: Uspešno posodobljen komentar
  *       400:
- *         description: Manjkajo podatki za shranjevanje komentarja ali format za {id} ni ustrezen
+ *         description: Manjkajo podatki za shranjevanje komentarja ali neustrezen format za ID komentarja ali kosa
  *       404:
- *         description: Kos z vpisanim {kos_id} ne obstaja
+ *         description: Komentar z vpisanim {id} ne obstaja na kosu z vpisanim {kos_id}
  *       500:
  *         description: Notranja napaka strežnika
  */
 router.put('/:id', authMiddleware, async (req, res, next) => {
-    const id = req.params.id;
-    const {kos_id, besedilo} = req.body; //samo 'besedilo' se lahko posodobi
+    const {kos_id, id} = req.params;
+    const {besedilo} = req.body; //samo 'besedilo' se lahko posodobi
 
-    if (!/^\d+$/.test(kos_id) || !/^\d+$/.test(id)) {
-        return res.status(400).json({ message: 'ID mora biti številka!' });
+    if (!/^\d+$/.test(kos_id)) {
+        return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
+    }
+    if (!/^\d+$/.test(id)) {
+        return res.status(400).json({ message: 'Neustrezen format za ID komentarja!' });
+    }
+    
+    if(!besedilo){
+        return res.status(400).json({message: 'Manjkajo podatki za posodabljanje komentarja!'});
     }
 
     try{
@@ -302,17 +352,15 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
             return res.status(404).json({message: `Kos z ID-jem '${kos_id}' ne obstaja!`});
         }
 
-        if(!kos_id || !besedilo){
-            return res.status(400).json({message: 'Manjkajo podatki za posodabljanje komentarja!'});
-        }
-
-        const sql = 'UPDATE komentar SET besedilo=? WHERE id=?';
-        const [result] = await pool.execute(sql, [besedilo, id]);
+        const sql = 'UPDATE komentar SET besedilo=? WHERE id=? AND kos_id=?';
+        const [result] = await pool.execute(sql, [besedilo, id, kos_id]);
         
         if (result.affectedRows === 1) {
             return res.status(204).send(); //204 je No Content - tut če pripnemo message, se ne prikaže
         } 
-        throw new Error('Posodabljanje komentarja ni bilo uspešno!');
+
+        return res.status(404).json({ message: `Komentar z ID-jem '${id}' ne obstaja na kosu z ID-jem '${kos_id}'!` });
+
     } catch (err) {
         next(err);
     }

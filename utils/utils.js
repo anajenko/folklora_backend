@@ -6,12 +6,6 @@ async function kosObstaja(id) {
     return rows.length > 0;
 }
 
-async function komentarObstaja(id) {
-    if (!id) return false;
-    const [rows] = await pool.execute('SELECT id FROM komentar WHERE id = ?', [id]);
-    return rows.length > 0;
-}
-
 async function labelaObstaja(id) {
     if (!id) return false;
     const [rows] = await pool.execute('SELECT id FROM labela WHERE id = ?', [id]);
@@ -62,7 +56,6 @@ function urlVira(reqOrPath, optionalPath) {
 
 module.exports = {
     kosObstaja,
-    komentarObstaja,
     labelaObstaja,
     uporabnikObstaja,
     urlVira

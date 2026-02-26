@@ -9,10 +9,10 @@ const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 
-const dataRouter = require('./routes/kosi');
-const commentsRouter = require('./routes/komentarji');
-const labelsRouter = require('./routes/labele');
-const usersRouter = require('./routes/uporabniki');
+const kosiRouter = require('./routes/kosi');
+const komentarjiRouter = require('./routes/komentarji');
+const labeleRouter = require('./routes/labele');
+const uporabnikiRouter = require('./routes/uporabniki');
 
 const app = express();
 
@@ -37,9 +37,9 @@ app.use((err, req, res, next) => {
     res.status(500).json({ message: 'Napaka strežnika.' });
 });
 
-app.use('/api/kosi', dataRouter);
-app.use('/api/komentarji', commentsRouter);
-app.use('/api/labele', labelsRouter);
-app.use('/api/uporabniki', usersRouter);
+app.use('/api/kosi', kosiRouter);
+app.use('/api/kosi/:kos_id/komentarji', komentarjiRouter);
+app.use('/api/labele', labeleRouter);
+app.use('/api/uporabniki', uporabnikiRouter);
 
 module.exports = app;
