@@ -15,4 +15,13 @@ function authMiddleware(req, res, next) {
     });
 }
 
-module.exports = authMiddleware;
+function requireGarderober(req, res, next) {
+    if (req.user?.tip_uporabnika !== 'garderober/-ka') {
+        return res.status(403).json({
+            message: 'Akcija je omogočena samo uporabnikom tipa: garderober/-ka.'
+        });
+    }
+    next();
+}
+
+module.exports = { authMiddleware, requireGarderober };

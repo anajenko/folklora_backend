@@ -5,7 +5,7 @@ const utils = require('../utils/utils.js');
 const multer = require('multer'); // nalaganje slik
 const upload = multer({storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 }}); // pomnilnik max 10MB
 const { fileTypeFromBuffer } = require('file-type');
-const authMiddleware = require('../utils/auth');
+const { authMiddleware, requireGarderober } = require('../utils/auth');
 
 /**
  * @swagger
@@ -67,9 +67,18 @@ const authMiddleware = require('../utils/auth');
  */
 router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
     try {
+        const poskodovanoQuery = req.query.poskodovano;
         const labelsQuery = req.query.labels; // pričakujemo npr. "1,3,5"
-        let sql = 'SELECT id, ime, tip, poskodovano FROM kos';
+        let sql = 'SELECT id, ime, tip, poskodovano FROM kos WHERE 1=1';
         let params = [];
+
+        if (poskodovanoQuery !== undefined) {
+            if (poskodovanoQuery === 'true' || poskodovanoQuery === '1') {
+                sql += ' AND poskodovano = 1';
+            } else if (poskodovanoQuery === 'false' || poskodovanoQuery === '0') {
+                sql += ' AND poskodovano = 0';
+            }
+        }
 
         if (labelsQuery) {
             // razdelimo ID-je in jih preverimo
@@ -80,15 +89,17 @@ router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
 
             // INNER JOIN z kos_labela za filtriranje kosov, ki imajo vse izbrane label-e
             // Uporabimo GROUP BY + HAVING COUNT za many-to-many relacijo
-            sql = `
-                SELECT k.id, k.ime, k.tip, k.poskodovano
-                FROM kos k
-                INNER JOIN kos_labela kl ON k.id = kl.kos_id
-                WHERE kl.labela_id IN (${labelIds.map(() => '?').join(',')})
-                GROUP BY k.id
-                HAVING COUNT(DISTINCT kl.labela_id) = ?
+            const placeholders = labelIds.map(() => '?').join(',');
+            sql += `
+                AND kos.id IN (
+                    SELECT kl.kos_id
+                    FROM kos_labela kl
+                    WHERE kl.labela_id IN (${placeholders})
+                    GROUP BY kl.kos_id
+                    HAVING COUNT(DISTINCT kl.labela_id) = ?
+                )
             `;
-            params = [...labelIds, labelIds.length];
+            params.push(...labelIds, labelIds.length);
         }
 
         // Uporabimo pool.execute() za varno izvedbo poizvedbe
@@ -211,7 +222,7 @@ router.get('/:id', async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.post('/', authMiddleware, upload.single('slika'), async (req, res, next) => {
+router.post('/', authMiddleware, requireGarderober, upload.single('slika'), async (req, res, next) => {
     const {ime, tip} = req.body;
 
     if(!ime || !tip || !req.file){
@@ -298,7 +309,7 @@ router.post('/', authMiddleware, upload.single('slika'), async (req, res, next) 
  *       500:
  *         description: Notranja napaka strežnika
  */
-router.delete('/:id', authMiddleware, async (req, res, next) => {
+router.delete('/:id', authMiddleware, requireGarderober, async (req, res, next) => {
     const id = req.params.id;
 
     if (!/^\d+$/.test(id)) {

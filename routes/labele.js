@@ -4,7 +4,7 @@ const pool = require('../utils/db.js'); // uvozimo Connection Pool
 const utils = require('../utils/utils.js'); // uvozimo pomožne funckije
 const multer = require('multer');
 const upload = multer(); 
-const authMiddleware = require('../utils/auth');
+const { authMiddleware, requireGarderober } = require('../utils/auth');
 
 /**
  * @swagger

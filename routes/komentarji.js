@@ -3,7 +3,7 @@ const router = express.Router({ mergeParams: true });
 // IMPORTANT: mergeParams allows access to kosId
 const pool = require('../utils/db.js'); // uvozimo Connection Pool
 const utils = require('../utils/utils.js');
-const authMiddleware = require('../utils/auth');
+const { authMiddleware, requireGarderober } = require('../utils/auth');
 
 /**
  * @swagger
