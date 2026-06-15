@@ -101,6 +101,7 @@ router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
             `;
             params.push(...labelIds, labelIds.length);
         }
+        sql += ' ORDER BY id DESC';
 
         // Uporabimo pool.execute() za varno izvedbo poizvedbe
         const [rows] = await pool.execute(sql, params);
@@ -115,7 +116,7 @@ router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
  * /api/kosi/{id}:
  *   get:
  *     security: []
- *     summary: Pridobivanje atriubuta vsebina kosa z {id} - samo slika
+ *     summary: Pridobivanje atributa vsebina kosa z {id} - samo slika
  *     tags: [Kosi]
  *     parameters:
  *       - in: path
