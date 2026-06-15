@@ -42,4 +42,6 @@ app.use('/api/kosi/:kos_id/komentarji', komentarjiRouter);
 app.use('/api/labele', labeleRouter);
 app.use('/api/uporabniki', uporabnikiRouter);
 
+app.disable("etag"); // onemogoči ETag, da preprečimo 304 Not Modified in vedno vrnemo sveže podatke
+
 module.exports = app;
