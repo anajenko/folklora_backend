@@ -38,6 +38,10 @@ const jwt = require('jsonwebtoken');
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - uporabnisko_ime
+ *               - geslo
+ *               - tip_uporabnika
  *             properties:
  *               uporabnisko_ime:
  *                 type: string
@@ -75,15 +79,22 @@ router.post('/', async (req, res, next) => {
         return res.status(400).json({message: 'Manjkajo podatki za registracijo!'})
     }
 
+    const dovoljeniTipi = ['garderober/-ka', 'plesalec/-ka', 'glasbenik/-ca'];
+    if (!dovoljeniTipi.includes(tip_uporabnika)) {
+        return res.status(400).json({
+            message: `Neveljaven tip uporabnika!}`
+        });
+    }
+
     try {
         if (await utils.uporabnikObstaja(uporabnisko_ime)) {
             return res.status(409).json({message: 'Uporabniško ime je že zasedeno!'})
         }
 
-        const hashed_geslo = await bcrypt.hash(geslo, 10); //geslo je hash od gesla
+        const hashedGeslo = await bcrypt.hash(geslo, 10); //geslo je hash od gesla
 
         const sql = 'INSERT INTO uporabnik (uporabnisko_ime, geslo, tip_uporabnika) VALUES (?, ?, ?)';
-        const [result] = await pool.execute(sql, [uporabnisko_ime, hashed_geslo, tip_uporabnika]);
+        const [result] = await pool.execute(sql, [uporabnisko_ime, hashedGeslo, tip_uporabnika]);
 
         if (result.affectedRows === 1) {
             const urlVira = utils.urlVira(req, `/api/uporabniki/${uporabnisko_ime}`);
@@ -139,10 +150,16 @@ router.post('/', async (req, res, next) => {
  *                   description: JWT žeton za avtentikacijo
  *                 uporabnisko_ime:
  *                   type: string
+ *                 tip_uporabnika:
+ *                   type: string
+ *                   enum:
+ *                     - garderober/-ka
+ *                     - plesalec/-ka
+ *                     - glasbenik/-ca
  *       400:
  *         description: Manjkajo podatki za prijavo
  *       401:
- *         description: Napačno uporabniško ime ali geslo
+ *         description: Uporabnik ne obstaja ali kombinacija uporabniškega imena in gesla ni pravilna
  *       500:
  *         description: Napaka strežnika
  */

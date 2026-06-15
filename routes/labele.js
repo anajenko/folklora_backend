@@ -25,6 +25,10 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *             - spol
  *             - velikost
  *             - drugo
+ *       required:
+ *         - id
+ *         - naziv
+ *         - tip
  */
 
 /**

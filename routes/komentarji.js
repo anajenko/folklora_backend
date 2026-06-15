@@ -92,7 +92,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
  * @swagger
  * /api/kosi/{kos_id}/komentarji/{id}:
  *   get:
- *     summary: Pridobivanje komentarja z vpisanim {id}
+ *     summary: Pridobivanje komentarja z vpisanim {id} na kosu z vpisanim {kos_id}
  *     tags: [Kosi]
  *     parameters:
  *       - in: path

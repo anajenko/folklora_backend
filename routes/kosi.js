@@ -29,6 +29,11 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *           type: boolean
  *           description: Zastavica, če je kos poškodovan (1 -> je poškodovan)
  *           default: false
+ *       required:
+ *         - id
+ *         - ime
+ *         - tip
+ *         - poskodovano
  */
 /**
  * @swagger
@@ -43,9 +48,16 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *           type: string
  *         required: false
  *         description: Seznam ID-jev label, ločenih z vejico, npr. "1,3,5". Vrne kose, ki imajo vse izbrane label-e.
+ * 
+ *       - in: query
+ *         name: poskodovano
+ *         schema:
+ *           type: boolean
+ *         required: false
+ *         description: Filtriranje kosov po atributu poškodovano (zastavica 0/1v bazi)
  *     responses:
  *       200:
- *         description: Uspešno vrnjen seznam vseh kosov
+ *         description: Uspešno vrnjen seznam kosov (lahko filtriran po labelah in atributu poskodovano)
  *         content:
  *           application/json:
  *             schema:
@@ -53,7 +65,7 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *               items:
  *                 $ref: '#/components/schemas/Kosi'
  *       400:
- *         description: Neveljaven parameter labels TODO
+ *         description: Neveljaven parameter labels ali poskodovano
  *         content:
  *           application/json:
  *             schema:
@@ -72,6 +84,11 @@ router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
         let sql = 'SELECT id, ime, tip, poskodovano FROM kos WHERE 1=1';
         let params = [];
 
+        if (poskodovanoQuery !== undefined && !['true', 'false', '1', '0'].includes(poskodovanoQuery)) {
+            return res.status(400).json({
+                message: 'Neveljaven parameter poskodovano!'
+            });
+        }
         if (poskodovanoQuery !== undefined) {
             if (poskodovanoQuery === 'true' || poskodovanoQuery === '1') {
                 sql += ' AND poskodovano = 1';
