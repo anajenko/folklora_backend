@@ -5,9 +5,9 @@ const pool = mysql.createPool({
     user: 'root',
     password: '',
     database: 'folklora_v1',
-    waitForConnections: true, // Če ni prostih povezav, čaka
-    connectionLimit: 10,       // Maksimalno število povezav
-    queueLimit: 0              // Maksimalno število čakajočih zahtev
+    waitForConnections: true, // če ni prostih povezav, čaka
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
 module.exports = pool;

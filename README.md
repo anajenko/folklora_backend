@@ -1,4 +1,36 @@
+### Namen aplikacije
+Aplikacija je namenjena vzdrževanju evidence kosov oblačil folklorne skupine, označevanju kosov s poljubnimi labelami, označevanje poškodovanih kosov in komentiranje. 
+
+
+### Arhitektura sistema
+- zaledni del (REST API) -> Node.js + Express
+- odjemalci
+    1. spletna aplikacija (frontend) -> Node.js + Express 
+    2. odjemalec št. 2: mobilna aplikacija -> Android (Java)
+- podatkovna baza -> MySQL (XAMPP)
+
+Avtentikacija uporabnikov je izvedena z JWT (JSON Web Token), ki se po uspešni prijavi pošilja v HTTP Authorization headerju.
+
+### Podatkovni model
+Na sliki je prikazana struktura podatkovne baze in relacije med tabelami.
+![Struktura baze](images/baza_struktura.png)
+
+### API dokumentacija
+
+Dokumentacija REST API-ja je dostopna preko Swagger UI:
+http://localhost:3000/api-docs
+
+---
+
 ### Navodila za zagon projekta
+
+#### 0. Zahtevana programska oprema
+- Node.js + npm 
+- XAMPP (MySQL)
+- Android Studio + Android SDK
+- Git
+
+---
 
 #### 1. Kloniramo 3 ločene repozitorije, vsakega v svojo mapo:
 

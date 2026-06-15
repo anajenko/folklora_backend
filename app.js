@@ -28,7 +28,7 @@ app.use(cookieParser());
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   swaggerOptions: {
-    persistAuthorization: true, // ohrani token med refresh
+    persistAuthorization: true, // ohrani token med refreshom strani
   }
 }));
 
@@ -42,6 +42,6 @@ app.use('/api/kosi/:kos_id/komentarji', komentarjiRouter);
 app.use('/api/labele', labeleRouter);
 app.use('/api/uporabniki', uporabnikiRouter);
 
-app.disable("etag"); // onemogoči ETag, da preprečimo 304 Not Modified in vedno vrnemo sveže podatke
+app.disable("etag"); // preprečimo 304 Not Modified in vedno vrnemo sveže podatke
 
 module.exports = app;
