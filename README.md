@@ -6,7 +6,7 @@ Aplikacija je namenjena vzdrževanju evidence kosov oblačil folklorne skupine, 
 - zaledni del (REST API) -> Node.js + Express
 - odjemalci
     1. spletna aplikacija (frontend) -> Node.js + Express 
-    2. odjemalec št. 2: mobilna aplikacija -> Android (Java)
+    2. mobilna aplikacija -> Android (Java)
 - podatkovna baza -> MySQL (XAMPP)
 
 Avtentikacija uporabnikov je izvedena z JWT (JSON Web Token), ki se po uspešni prijavi pošilja v HTTP Authorization headerju.
