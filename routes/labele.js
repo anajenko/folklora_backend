@@ -1,9 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../utils/db.js'); // uvozimo Connection Pool
-const utils = require('../utils/utils.js'); // uvozimo pomožne funckije
-const multer = require('multer');
-const upload = multer(); 
+const utils = require('../utils/utils.js');
 const { authMiddleware, requireGarderober } = require('../utils/auth');
 
 /**
@@ -52,7 +50,7 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
 router.get('/', authMiddleware, async (req, res, next) => {
     try {
         const [rows] = await pool.execute('SELECT id, naziv, tip FROM labela');
-        res.status(200).json(rows);		// Pošljemo podatke uporabniku kot JSON
+        res.status(200).json(rows);
     } catch (err) {
         next(err);
 	}
@@ -150,7 +148,7 @@ router.get('/:id/kosi', authMiddleware, async (req, res, next) => {
     try {
 		const id = req.params.id;
        
-        if (!/^\d+$/.test(id)) { //regex: any digit & one or more
+        if (!/^\d+$/.test(id)) {
             return res.status(400).json({ message: 'Neustrezen format za ID labele!' });
         }
 
@@ -276,7 +274,6 @@ router.post('/', authMiddleware, async (req, res, next) => {
         });
     }
     try {
-        //ali že obstaja labela z istim imenom
         const [rows] = await pool.execute('SELECT id FROM labela WHERE naziv = ?', [naziv]);
         if (rows.length > 0) {
             return res.status(409).json({ message: 'Labela z istim imenom že obstaja!' });
@@ -342,7 +339,7 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
         } 
         throw new Error('Brisanje labele ni bilo uspešno!');
     } catch (err) {
-        // Če gre za MySQL foreign key constraint
+        // MySQL foreign key constraint
         if (err.code === 'ER_ROW_IS_REFERENCED_2') {
             return res.status(409).json({ message: 'Labela je povezana s kosom in je zato ni mogoče izbrisati!' });
         }

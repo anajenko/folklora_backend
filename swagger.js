@@ -31,7 +31,7 @@ const options = {
     ],
   },
   
-  apis: ['./routes/*.js'], // where your routes are
+  apis: ['./routes/*.js'], // tam iščemmo Swagger komentarje
 };
 
 module.exports = swaggerJSDoc(options);

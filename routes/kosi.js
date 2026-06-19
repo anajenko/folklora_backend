@@ -39,7 +39,7 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  * @swagger
  * /api/kosi:
  *   get:
- *     summary: Pridobivanje vseh kosov (id, ime, tip) brez slike
+ *     summary: Pridobivanje (filtriranih) kosov (id, ime, tip, poskodovano) brez slike
  *     tags: [Kosi]
  *     parameters:
  *       - in: query
@@ -54,7 +54,7 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *         schema:
  *           type: boolean
  *         required: false
- *         description: Filtriranje kosov po atributu poškodovano (zastavica 0/1v bazi)
+ *         description: Filtriranje kosov po atributu poškodovano (zastavica 0/1 v bazi)
  *     responses:
  *       200:
  *         description: Uspešno vrnjen seznam kosov (lahko filtriran po labelah in atributu poskodovano)
@@ -81,7 +81,7 @@ router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
     try {
         const poskodovanoQuery = req.query.poskodovano;
         const labelsQuery = req.query.labels; // pričakujemo npr. "1,3,5"
-        let sql = 'SELECT id, ime, tip, poskodovano FROM kos WHERE 1=1';
+        let sql = 'SELECT id, ime, tip, poskodovano FROM kos WHERE 1=1'; //1=1 da lahko dodajamo AND pogoje
         let params = [];
 
         if (poskodovanoQuery !== undefined && !['true', 'false', '1', '0'].includes(poskodovanoQuery)) {
@@ -98,14 +98,13 @@ router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
         }
 
         if (labelsQuery) {
-            // razdelimo ID-je in jih preverimo
+            //pretvorimo string v array id-jev
             const labelIds = labelsQuery.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
             if (labelIds.length === 0) {
                 return res.status(400).json({ message: 'Neveljaven parameter labels!' });
             }
 
-            // INNER JOIN z kos_labela za filtriranje kosov, ki imajo vse izbrane label-e
-            // Uporabimo GROUP BY + HAVING COUNT za many-to-many relacijo
+            // INNER JOIN z kos_labela za filtriranje kosov, ki imajo vse izbrane label-e (HAVING COUNT(DISTINCT...) = število izbranih label)
             const placeholders = labelIds.map(() => '?').join(',');
             sql += `
                 AND kos.id IN (
@@ -116,13 +115,12 @@ router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
                     HAVING COUNT(DISTINCT kl.labela_id) = ?
                 )
             `;
-            params.push(...labelIds, labelIds.length);
+            params.push(...labelIds, labelIds.length); //nadomestimo ? z vrednostmi
         }
         sql += ' ORDER BY id DESC';
 
-        // Uporabimo pool.execute() za varno izvedbo poizvedbe
         const [rows] = await pool.execute(sql, params);
-        res.status(200).json(rows);		// Pošljemo podatke uporabniku kot JSON
+        res.status(200).json(rows);
     } catch (err) {
         next(err);
 	}
@@ -245,7 +243,6 @@ router.post('/', authMiddleware, requireGarderober, upload.single('slika'), asyn
 
     if(!ime || !tip || !req.file){
         return res.status(400).json({message: 'Manjkajo podatki za dodajanje novega kosa!'})
-        //ce posljes kodo namesto message, lahko jezik nastavis na klientu
     }
 
     const dovoljeniTipi = ['slika', 'audio', 'video', 'pdf'];
@@ -257,13 +254,11 @@ router.post('/', authMiddleware, requireGarderober, upload.single('slika'), asyn
 
     const vsebina = req.file.buffer; //BLOB podatki
     try {
-        //ali že obstaja kos z istim imenom
         const [rows] = await pool.execute('SELECT id FROM kos WHERE ime = ?', [ime]);
         if (rows.length > 0) {
             return res.status(409).json({ message: 'Kos z istim imenom že obstaja!' });
         }
 
-        //preverim dejanski tip vnesenega kosa
         const detectedType = await fileTypeFromBuffer(vsebina);
         if (!detectedType) {
             return res.status(415).json({message: 'Nepodprt tip kosa!'});
@@ -412,10 +407,10 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
         }
 
         if (poskodovano !== undefined) {
-            // poskodovano naj bo vedno 0 ali 1
-            const val = poskodovano ? 1 : 0;
+            // poskodovano je vedno 0 ali 1
+            const posk = poskodovano ? 1 : 0;
             updates.push('poskodovano = ?');
-            params.push(val);
+            params.push(posk);
         }
 
         if (updates.length === 0) {
@@ -430,17 +425,6 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
         if (result.affectedRows === 1) {
             return res.status(204).send();
         }
-
-        /*if(!ime){
-            return res.status(400).json({message: 'Manjka podatek *ime* za posodabljanje kosa!'});
-        }
-
-        const sql = 'UPDATE kos SET ime=? WHERE id=?';
-        const [result] = await pool.execute(sql, [ime, id]);
-        
-        if (result.affectedRows === 1) {
-            return res.status(204).send(); 
-        } */
         throw new Error('Spreminjanje kosa ni bilo uspešno!');
     } catch (err) {
         next(err);
@@ -487,7 +471,6 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
  *       500:
  *         description: Notranja napaka strežnika
  */
-// dodajanje labele :lab_id na kos :kos_id ----> kosi/:id/labele/:labela_id
 router.post('/:kos_id/labele/:labela_id', authMiddleware, async (req, res, next) => {
     const {kos_id, labela_id} = req.params;
 
@@ -558,7 +541,6 @@ router.post('/:kos_id/labele/:labela_id', authMiddleware, async (req, res, next)
  *       500:
  *         description: Notranja napaka strežnika
  */
-// brisanje labele :lab_id z kosa :kos_id --------> kosi/:id/labele/:labela_id
 router.delete('/:kos_id/labele/:labela_id', authMiddleware, async (req, res, next) => {
     const {kos_id, labela_id} = req.params;
 
@@ -567,7 +549,6 @@ router.delete('/:kos_id/labele/:labela_id', authMiddleware, async (req, res, nex
     }
 
     try {
-        // Preverimo, če povezava obstaja
         const [povezava] = await pool.execute('SELECT kos_id, labela_id FROM kos_labela WHERE kos_id = ? AND labela_id = ?', [kos_id, labela_id]);
         if (povezava.length === 0) {
             return res.status(404).json({ message: 'Povezava kos_labela ne obstaja!' });

@@ -2,9 +2,9 @@ require('dotenv').config();   // naloži spremenljivke iz .env datoteke v proces
 
 const express = require('express');
 const path = require('path');
-const cookieParser = require('cookie-parser');
-const logger = require('morgan');
-const cors = require('cors');
+const cookieParser = require('cookie-parser'); 
+const logger = require('morgan'); // logiranje HTTP zahtev v konzolo
+const cors = require('cors'); // komunikacija med frontend in backend strežnikom
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
@@ -17,11 +17,11 @@ const uporabnikiRouter = require('./routes/uporabniki');
 const app = express();
 
 app.use(cors({
-  origin: 'http://localhost:3001', // allow your frontend origin
+  origin: 'http://localhost:3001', // allow frontend origin
   credentials: true               // allow cookies/auth if needed
 }));
 
-app.use(logger('dev'));
+app.use(logger('dev')); // vsak HTTP zahtevek se logira
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -32,16 +32,16 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   }
 }));
 
-app.use((err, req, res, next) => {
-    console.error(err);
-    res.status(500).json({ message: 'Napaka strežnika.' });
-});
-
 app.use('/api/kosi', kosiRouter);
 app.use('/api/kosi/:kos_id/komentarji', komentarjiRouter);
 app.use('/api/labele', labeleRouter);
 app.use('/api/uporabniki', uporabnikiRouter);
 
-app.disable("etag"); // preprečimo 304 Not Modified in vedno vrnemo sveže podatke
+app.use((err, req, res, next) => {
+    console.error(err);
+    res.status(500).json({ message: 'Napaka strežnika.' });
+});
+
+//app.disable("etag"); // preprečimo 304 Not Modified in vedno vrnemo sveže podatke
 
 module.exports = app;

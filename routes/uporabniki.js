@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../utils/db.js'); // uvozimo Connection Pool
 const utils = require('../utils/utils.js'); // uvozimo pomožne funckije
-const bcrypt = require('bcrypt'); // knjižnica za zgoščevanje gesel (hash)
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 /**
@@ -13,7 +13,7 @@ const jwt = require('jsonwebtoken');
  *       type: object
  *       properties:
  *         id:
- *          type: integer
+ *           type: integer
  *         uporabnisko_ime:
  *           type: string
  *         tip_uporabnika:
@@ -91,7 +91,7 @@ router.post('/', async (req, res, next) => {
             return res.status(409).json({message: 'Uporabniško ime je že zasedeno!'})
         }
 
-        const hashedGeslo = await bcrypt.hash(geslo, 10); //geslo je hash od gesla
+        const hashedGeslo = await bcrypt.hash(geslo, 10);
 
         const sql = 'INSERT INTO uporabnik (uporabnisko_ime, geslo, tip_uporabnika) VALUES (?, ?, ?)';
         const [result] = await pool.execute(sql, [uporabnisko_ime, hashedGeslo, tip_uporabnika]);

@@ -1,6 +1,5 @@
 const express = require('express');
-const router = express.Router({ mergeParams: true }); 
-// IMPORTANT: mergeParams allows access to kosId
+const router = express.Router({ mergeParams: true }); // mergeParams omogoča dostop do parent route-a kosId
 const pool = require('../utils/db.js'); // uvozimo Connection Pool
 const utils = require('../utils/utils.js');
 const { authMiddleware, requireGarderober } = require('../utils/auth');
@@ -31,7 +30,7 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  * /api/kosi/{kos_id}/komentarji:
  *   get:
  *     summary: Pridobivanje vseh komentarjev kosa z {kos_id}
- *     tags: [Kosi]
+ *     tags: [Komentarji]
  *     parameters:
  *       - in: path
  *         name: kos_id
@@ -60,6 +59,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
     try {
 		const {kos_id} = req.params;
         
+        //string mora vsebovati samo številke
         if (!/^\d+$/.test(kos_id)) {
             return res.status(400).json({ message: 'Neustrezen format za ID kosa!' });
         }
@@ -93,7 +93,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
  * /api/kosi/{kos_id}/komentarji/{id}:
  *   get:
  *     summary: Pridobivanje komentarja z vpisanim {id} na kosu z vpisanim {kos_id}
- *     tags: [Kosi]
+ *     tags: [Komentarji]
  *     parameters:
  *       - in: path
  *         name: kos_id
@@ -161,7 +161,7 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
  * /api/kosi/{kos_id}/komentarji:
  *   post:
  *     summary: Dodajanje komentarja na kos
- *     tags: [Kosi]
+ *     tags: [Komentarji]
  *     parameters:
  *       - in: path
  *         name: kos_id
@@ -193,7 +193,7 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
  *                 url:
  *                   type: string
  *       400:
- *         description: Manjkajo podatki za dodajanje komentarja ali neustrezen format za ID kosa
+ *         description: Manjkajo podatki za dodajanje komentarja ali neustrezen format podatkov
  *       404:
  *         description: Kos z {kos_id} ne obstaja
  *       500:
@@ -208,7 +208,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
     }
     
     if (!besedilo) { 
-        return res.status(400).json({ message: 'Manjka podatek besedilo!' });
+        return res.status(400).json({ message: 'Manjka besedilo komentarja!' });
     }
     if (besedilo.trim() === '') { 
         return res.status(400).json({ message: 'Komentar ne sme biti prazen!' });
@@ -244,7 +244,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
  * /api/kosi/{kos_id}/komentarji/{id}:
  *   delete:
  *     summary: Brisanje obstoječega komentarja z {id}
- *     tags: [Kosi]
+ *     tags: [Komentarji]
  *     parameters:
  *       - in: path
  *         name: kos_id
@@ -297,7 +297,7 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
  * /api/kosi/{kos_id}/komentarji/{id}:
  *   put:
  *     summary: Posodabljanje vsebine komentarja z vpisanim {id}
- *     tags: [Kosi]
+ *     tags: [Komentarji]
  *     parameters:
  *       - in: path
  *         name: kos_id
@@ -344,7 +344,10 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
     }
     
     if(!besedilo){
-        return res.status(400).json({message: 'Manjkajo podatki za posodabljanje komentarja!'});
+        return res.status(400).json({ message: 'Manjkajo podatki za posodabljanje komentarja!' });
+    }
+    if (besedilo.trim() === '') { 
+        return res.status(400).json({ message: 'Komentar ne sme biti prazen!' });
     }
 
     try{
@@ -356,7 +359,7 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
         const [result] = await pool.execute(sql, [besedilo, id, kos_id]);
         
         if (result.affectedRows === 1) {
-            return res.status(204).send(); //204 je No Content - tut če pripnemo message, se ne prikaže
+            return res.status(204).send();
         } 
 
         return res.status(404).json({ message: `Komentar z ID-jem '${id}' ne obstaja na kosu z ID-jem '${kos_id}'!` });
