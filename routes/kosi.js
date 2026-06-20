@@ -228,6 +228,8 @@ router.get('/:id', async (req, res, next) => {
  *                   type: string
  *       400:
  *         description: Manjkajo podatki za dodajanje novega kosa ali vsebina ne ustreza izbranemu tipu ali tip kosa ni pravilen
+ *       403:
+ *         description: Akcija je omogočena samo uporabnikom tipa garderober/-ka
  *       409: 
  *         description: Kos z istim imenom že obstaja  
  *       415:
@@ -314,6 +316,8 @@ router.post('/', authMiddleware, requireGarderober, upload.single('slika'), asyn
  *         description: Kos je bil uspešno izbrisan
  *       400:
  *         description: Neustrezen format za {id} kosa
+ *       403:
+ *         description: Akcija je omogočena samo uporabnikom tipa garderober/-ka
  *       404:
  *         description: Kos z vpisanim {id} ne obstaja
  *       500:
