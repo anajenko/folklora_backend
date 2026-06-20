@@ -84,17 +84,14 @@ router.get('/', authMiddleware, async (req, res, next) => { // = '/kosi'
         let sql = 'SELECT id, ime, tip, poskodovano FROM kos WHERE 1=1'; //1=1 da lahko dodajamo AND pogoje
         let params = [];
 
-        if (poskodovanoQuery !== undefined && !['true', 'false', '1', '0'].includes(poskodovanoQuery)) {
+        if (poskodovanoQuery !== undefined &&  poskodovanoQuery !== '0' && poskodovanoQuery !== '1') {
             return res.status(400).json({
                 message: 'Neveljaven parameter poskodovano!'
             });
         }
         if (poskodovanoQuery !== undefined) {
-            if (poskodovanoQuery === 'true' || poskodovanoQuery === '1') {
-                sql += ' AND poskodovano = 1';
-            } else if (poskodovanoQuery === 'false' || poskodovanoQuery === '0') {
-                sql += ' AND poskodovano = 0';
-            }
+            sql += ' AND poskodovano = ?';
+            params.push(Number(poskodovanoQuery));
         }
 
         if (labelsQuery) {
@@ -281,7 +278,7 @@ router.post('/', authMiddleware, requireGarderober, upload.single('slika'), asyn
             return res.status(400).json({message: `Vsebina kosa ne ustreza izbranemu tipu '${tip}'!`})
         }
 
-        const sql = 'INSERT INTO kos (ime, tip, vsebina, poskodovano) VALUES (?, ?, ?, false)';
+        const sql = 'INSERT INTO kos (ime, tip, vsebina, poskodovano) VALUES (?, ?, ?, 0)';
         const [result] = await pool.execute(sql, [ime, tip, vsebina]);
 
         if (result.affectedRows === 1) {
@@ -370,7 +367,7 @@ router.delete('/:id', authMiddleware, requireGarderober, async (req, res, next) 
  *                 description: Novo ime kosa
  *               poskodovano:
  *                 type: boolean
- *                 description: Zastavica, če je kos poškodovan (true -> je poškodovan)
+ *                 description: Zastavica, če je kos poškodovan (1 -> je poškodovan)
  *     responses:
  *       204:
  *         description: Uspešno posodobljen kos
