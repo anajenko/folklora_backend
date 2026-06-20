@@ -44,6 +44,8 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Labele'
+ *       401:
+ *         description: Manjka JWT žeton
  *       500:
  *         description: Notranja napaka strežnika
  */
@@ -78,6 +80,8 @@ router.get('/', authMiddleware, async (req, res, next) => {
  *               $ref: '#/components/schemas/Labele'
  *       400:
  *         description: Neustrezen format za {id} labele
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Labela z z vpisanim {id} ne obstaja
  *       500:
@@ -138,6 +142,8 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
  *                       - pdf
  *       400:
  *         description: Neustrezen format za {id} labele
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Labela z vpisanim {id} ne obstaja
  *       500:
@@ -194,6 +200,8 @@ router.get('/:id/kosi', authMiddleware, async (req, res, next) => {
  *                 $ref: '#/components/schemas/Labele'
  *       400:
  *         description: Neustrezen format za {id} kosa
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Kos z vpisanim {kos_id} ne obstaja
  *       500:
@@ -255,6 +263,8 @@ router.get('/kos/:kos_id', authMiddleware, async (req, res, next) => {
  *                   type: string
  *       400:
  *         description: Manjkajo podatki za dodajanje nove labele ali tip ni pravilen
+ *       401:
+ *         description: Manjka JWT žeton
  *       409:
  *         description: Labela z istim imenom že obstaja
  *       500:
@@ -315,6 +325,8 @@ router.post('/', authMiddleware, async (req, res, next) => {
  *         description: Labela je bila uspešno izbrisana
  *       400:
  *         description: Neustrezen format za {id} labele
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Labela z vpisanim {id} ne obstaja
  *       409:

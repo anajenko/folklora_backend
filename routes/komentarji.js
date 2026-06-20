@@ -49,6 +49,8 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *                 $ref: '#/components/schemas/Komentarji'
  *       400:
  *         description: Neustrezen format za {id} kosa
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Kos z vpisanim {id} ne obstaja
  *       500:
@@ -116,6 +118,8 @@ router.get('/', authMiddleware, async (req, res, next) => {
  *               $ref: '#/components/schemas/Komentarji'
  *       400:
  *         description: Neustrezen format za ID kosa ali komentarja
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Komentar z vpisanim {id} ne obstaja na kosu z vpisanim {kos_id}
  *       500:
@@ -194,6 +198,8 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
  *                   type: string
  *       400:
  *         description: Manjkajo podatki za dodajanje komentarja ali neustrezen format podatkov
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Kos z {kos_id} ne obstaja
  *       500:
@@ -263,6 +269,8 @@ router.post('/', authMiddleware, async (req, res, next) => {
  *         description: Komentar je bil uspešno izbrisan
  *       400:
  *         description: Neustrezen format za ID komentarja ali kosa
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Komentar z vpisanim {id} ne obstaja na kosu z vpisanim {kos_id}
  *       500:
@@ -327,6 +335,8 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
  *         description: Uspešno posodobljen komentar
  *       400:
  *         description: Manjkajo podatki za shranjevanje komentarja ali neustrezen format za ID komentarja ali kosa
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Komentar z vpisanim {id} ne obstaja na kosu z vpisanim {kos_id}
  *       500:

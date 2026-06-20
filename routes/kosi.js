@@ -74,6 +74,8 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *                 message:
  *                   type: string
  *                   example: Neveljaven parameter labels!
+ *       401:
+ *         description: Manjka JWT žeton
  *       500:
  *         description: Notranja napaka strežnika
  */
@@ -228,6 +230,8 @@ router.get('/:id', async (req, res, next) => {
  *                   type: string
  *       400:
  *         description: Manjkajo podatki za dodajanje novega kosa ali vsebina ne ustreza izbranemu tipu ali tip kosa ni pravilen
+ *       401:
+ *         description: Manjka JWT žeton
  *       403:
  *         description: Akcija je omogočena samo uporabnikom tipa garderober/-ka
  *       409: 
@@ -316,6 +320,8 @@ router.post('/', authMiddleware, requireGarderober, upload.single('slika'), asyn
  *         description: Kos je bil uspešno izbrisan
  *       400:
  *         description: Neustrezen format za {id} kosa
+ *       401:
+ *         description: Manjka JWT žeton
  *       403:
  *         description: Akcija je omogočena samo uporabnikom tipa garderober/-ka
  *       404:
@@ -377,6 +383,8 @@ router.delete('/:id', authMiddleware, requireGarderober, async (req, res, next) 
  *         description: Uspešno posodobljen kos
  *       400:
  *         description: Manjkajo podatki za shranjevanje kosa ali format za {id} kosa ni ustrezen
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Kos z vpisanim {id} ne obstaja
  *       500:
@@ -467,6 +475,8 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
  *         description: Manjkajo podatki kos_id ali labela_id ali {id} ni pravega formata
  *       404:
  *         description: Kos z {kos_id} ali labela z {labela_id} ne obstaja
+ *       401:
+ *         description: Manjka JWT žeton
  *       409:
  *         description: Ta labela je že povezana s kosom
  *       500:
@@ -537,6 +547,8 @@ router.post('/:kos_id/labele/:labela_id', authMiddleware, async (req, res, next)
  *         description: Labela je bila uspešno odstranjena s kosa
  *       400:
  *         description: Neustrezen format za {id} kosa ali {id} labele
+ *       401:
+ *         description: Manjka JWT žeton
  *       404:
  *         description: Povezava kos_labela ne obstaja
  *       500:
