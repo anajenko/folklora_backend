@@ -83,7 +83,7 @@ http://localhost:3000/api-docs
 1. odpremo projekt v Android Studiu
    - po potrebi izvedemo: `Gradle Sync` in `Clean & Rebuild`
 
-2. v `ApiClient.java` nastavimo: baseUrl = http://IP_NASLOV_RACUNALNIKA_S_POGNANIM_BACKEND:3000/
+2. v `RetrofitClient.java` nastavimo: BASE_URL = http://IP_NASLOV_RACUNALNIKA_S_POGNANIM_BACKEND:3000/
     - Telefon mora biti v istem omrežju kot računalnik (isti WiFi ali hotspot)
 
 ---
