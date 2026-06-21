@@ -17,7 +17,7 @@ Na sliki je prikazana struktura podatkovne baze in relacije med tabelami.
 
 ### API dokumentacija
 
-Dokumentacija REST API-ja je dostopna preko Swagger UI:
+Dokumentacija REST API-ja je v lokalni postavitvi dostopna preko Swagger UI:
 http://localhost:3000/api-docs
 
 ---
