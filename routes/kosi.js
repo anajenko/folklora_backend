@@ -26,7 +26,8 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *             - video
  *             - pdf
  *         poskodovano:
- *           type: boolean
+ *           type: integer
+ *           enum: [0, 1]
  *           description: Zastavica, če je kos poškodovan (1 -> je poškodovan)
  *           default: false
  *       required:
@@ -52,7 +53,8 @@ const { authMiddleware, requireGarderober } = require('../utils/auth');
  *       - in: query
  *         name: poskodovano
  *         schema:
- *           type: boolean
+ *           type: integer
+ *           enum: [0, 1]
  *         required: false
  *         description: Filtriranje kosov po atributu poškodovano (zastavica 0/1 v bazi)
  *     responses:
@@ -376,7 +378,8 @@ router.delete('/:id', authMiddleware, requireGarderober, async (req, res, next) 
  *                 type: string
  *                 description: Novo ime kosa
  *               poskodovano:
- *                 type: boolean
+ *                 type: integer
+ *                 enum: [0, 1]
  *                 description: Zastavica, če je kos poškodovan (1 -> je poškodovan)
  *     responses:
  *       204:
